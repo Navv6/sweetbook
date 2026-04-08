@@ -78,7 +78,8 @@ export default function CheckoutPage() {
       });
 
       if (!publishResponse.ok) {
-        throw new Error("\uCC45 \uBC1C\uD589\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+        const errBody = await publishResponse.json().catch(() => null) as { message?: string } | null;
+        throw new Error(errBody?.message ?? "\uCC45 \uBC1C\uD589\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
       }
 
       const publishPayload = (await publishResponse.json()) as {
@@ -100,7 +101,8 @@ export default function CheckoutPage() {
       });
 
       if (!orderResponse.ok) {
-        throw new Error("\uC8FC\uBB38 \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+        const errBody = await orderResponse.json().catch(() => null) as { message?: string } | null;
+        throw new Error(errBody?.message ?? "\uC8FC\uBB38 \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
       }
 
       const orderPayload = (await orderResponse.json()) as {

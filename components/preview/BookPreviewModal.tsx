@@ -305,10 +305,10 @@ function Book3D({
       {/* 3D 북 */}
       <div style={{ perspective: "1000px" }} className="cursor-pointer group" onClick={onOpen}>
         <div
-          className="relative transition-transform duration-700 ease-out group-hover:rotate-y-0"
+          className="relative transition-transform duration-700 ease-out"
           style={{
             transformStyle: "preserve-3d",
-            transform: "rotateY(-35deg) rotateX(8deg)",
+            transform: "rotateY(-6deg) rotateX(3deg)",
             width: "220px",
             height: "300px",
           }}

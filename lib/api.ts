@@ -343,20 +343,34 @@ export const publishProject = async (project: Project) => {
   const coverTemplateUid = COVER_TEMPLATE[specUid] ?? COVER_TEMPLATE.PHOTOBOOK_A4_SC;
   const coverForm = new FormData();
   coverForm.append("templateUid", coverTemplateUid);
-  coverForm.append(
-    "parameters",
-    JSON.stringify({
-      title: project.title,
-      author: "SweetBook Studio",
-      frontPhoto: coverImage.startsWith("data:") ? "$upload" : coverImage,
-      backPhoto: coverImage.startsWith("data:") ? "$upload" : coverImage,
-    }),
-  );
+
+  const now = new Date();
+  // 형식: "YY.MM" (예: 26.01 - 26.04)
+  const yy = String(now.getFullYear()).slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dateRange = `${yy}.${mm}`;
 
   if (coverImage.startsWith("data:")) {
+    const coverFile = await toFileFromDataUrl(coverImage, "cover.jpg");
+    coverForm.append("coverPhoto", coverFile);
     coverForm.append(
-      "frontPhoto",
-      await toFileFromDataUrl(coverImage, "cover.jpg"),
+      "parameters",
+      JSON.stringify({
+        title: project.title,
+        author: "SweetBook Studio",
+        coverPhoto: "coverPhoto",
+        dateRange,
+      }),
+    );
+  } else {
+    coverForm.append(
+      "parameters",
+      JSON.stringify({
+        title: project.title,
+        author: "SweetBook Studio",
+        coverPhoto: coverImage,
+        dateRange,
+      }),
     );
   }
 
@@ -378,47 +392,77 @@ export const publishProject = async (project: Project) => {
       const galleryTplUid = CONTENT_GALLERY_TEMPLATE[specUid] ?? CONTENT_GALLERY_TEMPLATE.PHOTOBOOK_A4_SC;
       const storyTplUid = CONTENT_STORY_TEMPLATE[specUid] ?? CONTENT_STORY_TEMPLATE.PHOTOBOOK_A4_SC;
 
-      if (page.templateKey === "gallery") {
-        const galleryPhotoNames: string[] = [];
+      const pageDate = new Date();
+      const monthNum = String(pageDate.getMonth() + 1).padStart(2, "0");
+      const dayNum = String(pageDate.getDate()).padStart(2, "0");
 
-        for (const [index, image] of imageElements.entries()) {
-          const file = await resolveImageFile(
-            image.imageUrl,
-            `gallery-${section.id}-${index}.jpg`,
-          );
-          const name = `galleryPhoto_${index}`;
-          if (file) {
-            formData.append(name, file);
-          }
-          galleryPhotoNames.push(image.imageUrl.startsWith("data:") ? name : image.imageUrl);
-        }
-
-        formData.append("templateUid", galleryTplUid);
-        formData.append(
-          "parameters",
-          JSON.stringify({
-            date: new Date().toISOString().slice(0, 10),
-            galleryPhotos: galleryPhotoNames,
-            contents: bodyText,
-          }),
-        );
-      } else {
+      // SQUAREBOOK_HC는 별도 파라미터 구조 사용
+      if (specUid === "SQUAREBOOK_HC") {
         const primaryImage = imageElements[0];
         const primaryFile = primaryImage
           ? await resolveImageFile(primaryImage.imageUrl, `${page.id}.jpg`)
           : null;
 
         if (primaryFile) {
-          formData.append("imageMain", primaryFile);
+          formData.append("photo1", primaryFile);
         }
 
         formData.append("templateUid", storyTplUid);
         formData.append(
           "parameters",
           JSON.stringify({
-            imageMain: primaryFile ? "imageMain" : (primaryImage?.imageUrl ?? "/demo/editorial-desk.svg"),
-            dateStr: new Date().toISOString().slice(0, 10),
-            contents: bodyText,
+            photo1: primaryFile ? "photo1" : (primaryImage?.imageUrl ?? ""),
+            date: `${Number(monthNum)}.${dayNum}`,
+            title: section.title ?? project.title,
+            diaryText: bodyText,
+          }),
+        );
+      } else if (page.templateKey === "gallery") {
+        // A4 / A5 갤러리 (collageGallery 바인딩)
+        const collagePhotoUrls: string[] = [];
+
+        for (const [index, image] of imageElements.entries()) {
+          const file = await resolveImageFile(
+            image.imageUrl,
+            `gallery-${section.id}-${index}.jpg`,
+          );
+          if (file) {
+            const fieldName = `collagePhoto_${index}`;
+            formData.append(fieldName, file);
+            collagePhotoUrls.push(fieldName);
+          } else {
+            collagePhotoUrls.push(image.imageUrl);
+          }
+        }
+
+        formData.append("templateUid", galleryTplUid);
+        formData.append(
+          "parameters",
+          JSON.stringify({
+            monthNum,
+            dayNum,
+            collagePhotos: collagePhotoUrls,
+          }),
+        );
+      } else {
+        // A4 / A5 스토리·포커스·인트로
+        const primaryImage = imageElements[0];
+        const primaryFile = primaryImage
+          ? await resolveImageFile(primaryImage.imageUrl, `${page.id}.jpg`)
+          : null;
+
+        if (primaryFile) {
+          formData.append("photo", primaryFile);
+        }
+
+        formData.append("templateUid", storyTplUid);
+        formData.append(
+          "parameters",
+          JSON.stringify({
+            photo: primaryFile ? "photo" : (primaryImage?.imageUrl ?? ""),
+            monthNum,
+            dayNum,
+            diaryText: bodyText,
           }),
         );
       }
