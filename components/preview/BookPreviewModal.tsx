@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { SoundtrackQR } from "@/components/ui/SoundtrackQR";
 import type { GeneratedPage, PageElement, Project } from "@/types/project";
 
 // ─── 페이지 렌더러 ───────────────────────────────────────────────────────────
@@ -414,6 +415,12 @@ function Book3D({
       <p className="text-[11px] uppercase tracking-[0.2em] text-gray-400">
         {`${pageCount}페이지 · ${project.bookSpecId}`}
       </p>
+
+      <SoundtrackQR
+        projectId={project.id}
+        projectTitle={project.title}
+        size={120}
+      />
     </div>
   );
 }

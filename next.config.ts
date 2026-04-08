@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
         hostname: "api-sandbox.sweetbook.com",
         pathname: "/templates_thumb/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
     ],
   },
 };

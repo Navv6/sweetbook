@@ -6,6 +6,7 @@ import { Container } from "@/components/layout/Container";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { SoundtrackQR } from "@/components/ui/SoundtrackQR";
 import { useProjectStore } from "@/store/useProjectStore";
 
 export default function OrderDetailPage() {
@@ -162,6 +163,34 @@ export default function OrderDetailPage() {
               </Card>
             </section>
           </div>
+
+          {/* 사운드트랙 QR 섹션 */}
+          <section className="mt-16">
+            <div
+              className="rounded-2xl p-10 flex flex-col items-center gap-6"
+              style={{
+                background:
+                  "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+              }}
+            >
+              <div className="text-center">
+                <p className="text-xs uppercase tracking-[0.25em]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  {"AI Soundtrack"}
+                </p>
+                <h2 className="mt-2 text-xl font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
+                  {"이 책의 사운드트랙"}
+                </h2>
+                <p className="mt-3 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  {"QR코드를 스캔하면 이 포토북을 위해 생성된 음악을 들을 수 있습니다"}
+                </p>
+              </div>
+              <SoundtrackQR
+                projectId={params.id}
+                projectTitle={project.title}
+                size={160}
+              />
+            </div>
+          </section>
         </Container>
       </main>
     </>
