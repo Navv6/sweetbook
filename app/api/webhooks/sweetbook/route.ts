@@ -68,14 +68,24 @@ export async function POST(request: Request) {
   const timestamp = request.headers.get("X-Webhook-Timestamp") ?? "";
   const signature = request.headers.get("X-Webhook-Signature") ?? "";
 
-  console.log(`[webhook] ${event} delivery=${deliveryId}`);
+  console.log(`[webhook] ${event} delivery=${deliveryId} ts=${timestamp}`);
 
   // 서명 검증 (WEBHOOK_SECRET 환경변수가 있을 때만)
-  const secret = process.env.SWEETBOOK_WEBHOOK_SECRET;
+  // .trim()으로 echo 저장 시 붙는 개행문자 제거
+  const secret = process.env.SWEETBOOK_WEBHOOK_SECRET?.trim();
   if (secret) {
     const valid = verifySignature(rawBody, timestamp, signature, secret);
     if (!valid) {
-      console.warn("[webhook] 서명 검증 실패", { event, deliveryId });
+      // 디버그용: 기대값 앞 20자만 로그 (보안상 전체 노출 금지)
+      const expected = "sha256=" + createHmac("sha256", secret)
+        .update(`${timestamp}.${rawBody}`)
+        .digest("hex");
+      console.warn("[webhook] 서명 불일치", {
+        event,
+        deliveryId,
+        receivedPrefix: signature.slice(0, 20),
+        expectedPrefix: expected.slice(0, 20),
+      });
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   }
