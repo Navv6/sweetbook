@@ -46,9 +46,16 @@ const sweetBookRequest = async <T>(
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(
-      payload?.message ?? `${path} \uC694\uCCAD \uC2E4\uD328 (${response.status})`,
-    );
+    // 가능한 한 상세한 에러 메시지 구성
+    const detail =
+      payload?.message ??
+      (payload?.errors
+        ? JSON.stringify(payload.errors)
+        : null) ??
+      `${path} 요청 실패 (${response.status})`;
+    const msg = `[${path}] ${detail}`;
+    console.error("[sweetbook]", msg, JSON.stringify(payload));
+    throw new Error(msg);
   }
 
   return payload as T;
@@ -281,13 +288,27 @@ export const estimateProject = async (
   return buildMockEstimate(project, quantity);
 };
 
+/** data: URL → File 변환. http(s) URL은 null 반환(파라미터에 직접 사용). 상대경로 등 무효 URL도 null 반환 */
 const resolveImageFile = async (
   imageUrl: string,
   fileName: string,
 ): Promise<File | null> => {
-  if (!imageUrl.startsWith("data:")) return null;
-  return toFileFromDataUrl(imageUrl, fileName);
+  if (imageUrl.startsWith("data:")) {
+    return toFileFromDataUrl(imageUrl, fileName);
+  }
+  return null;
 };
+
+/** 퍼블리시에 사용 가능한 이미지 URL인지 확인 (절대 http(s) URL만 허용) */
+const isAbsoluteUrl = (url: string) =>
+  url.startsWith("http://") || url.startsWith("https://");
+
+/** demo/fallback 이미지 URL (SweetBook Sandbox 기준) */
+const FALLBACK_IMAGE_URL = "https://api-sandbox.sweetbook.com/templates_thumb/3nWJ4wtPSQOb/layout.jpg";
+
+/** 이미지 URL이 절대 http(s)면 그대로 반환, 아니면 fallback 반환 */
+const resolvePhotoParam = (url?: string) =>
+  url && isAbsoluteUrl(url) ? url : FALLBACK_IMAGE_URL;
 
 // 실제 SweetBook API에 존재하는 templateUid 매핑 (bookSpecUid 기준)
 const COVER_TEMPLATE: Record<string, string> = {
@@ -317,6 +338,7 @@ export const publishProject = async (project: Project) => {
   }
 
   const specUid = project.bookSpecId;
+  console.log("[publish] specUid:", specUid, "title:", project.title);
 
   const createResponse = await sweetBookRequest<{ data: { bookUid: string } }>(
     "/books",
@@ -335,10 +357,14 @@ export const publishProject = async (project: Project) => {
   );
 
   const bookUid = createResponse.data.bookUid;
-  const coverImage =
+  console.log("[publish] bookUid:", bookUid);
+
+  // 커버 이미지 결정: data: URL > 절대 http URL > fallback
+  const rawCoverImage =
     project.coverImageUrl ??
-    project.contentItems.find((item) => item.imageUrl)?.imageUrl ??
-    "https://api-sandbox.sweetbook.com/templates_thumb/31LOxBQzsVwo/layout.jpg";
+    project.contentItems.find((item) => item.imageUrl && isAbsoluteUrl(item.imageUrl))?.imageUrl;
+  const coverImage =
+    rawCoverImage ?? "https://api-sandbox.sweetbook.com/templates_thumb/31LOxBQzsVwo/layout.jpg";
 
   const coverTemplateUid = COVER_TEMPLATE[specUid] ?? COVER_TEMPLATE.PHOTOBOOK_A4_SC;
   const coverForm = new FormData();
@@ -357,9 +383,8 @@ export const publishProject = async (project: Project) => {
       "parameters",
       JSON.stringify({
         title: project.title,
-        author: "SweetBook Studio",
-        coverPhoto: "coverPhoto",
         dateRange,
+        coverPhoto: "coverPhoto",
       }),
     );
   } else {
@@ -367,12 +392,13 @@ export const publishProject = async (project: Project) => {
       "parameters",
       JSON.stringify({
         title: project.title,
-        author: "SweetBook Studio",
-        coverPhoto: coverImage,
         dateRange,
+        coverPhoto: coverImage,
       }),
     );
   }
+
+  console.log("[publish] cover image:", coverImage.slice(0, 60));
 
   await sweetBookRequest(`/books/${bookUid}/cover`, {
     method: "POST",
@@ -411,7 +437,7 @@ export const publishProject = async (project: Project) => {
         formData.append(
           "parameters",
           JSON.stringify({
-            photo1: primaryFile ? "photo1" : (primaryImage?.imageUrl ?? ""),
+            photo1: primaryFile ? "photo1" : resolvePhotoParam(primaryImage?.imageUrl),
             date: `${Number(monthNum)}.${dayNum}`,
             title: section.title ?? project.title,
             diaryText: bodyText,
@@ -431,8 +457,14 @@ export const publishProject = async (project: Project) => {
             formData.append(fieldName, file);
             collagePhotoUrls.push(fieldName);
           } else {
-            collagePhotoUrls.push(image.imageUrl);
+            // 상대경로/무효 URL은 fallback 처리
+            collagePhotoUrls.push(resolvePhotoParam(image.imageUrl));
           }
+        }
+
+        // 최소 1개 사진 필요
+        if (collagePhotoUrls.length === 0) {
+          collagePhotoUrls.push(FALLBACK_IMAGE_URL);
         }
 
         formData.append("templateUid", galleryTplUid);
@@ -459,7 +491,7 @@ export const publishProject = async (project: Project) => {
         formData.append(
           "parameters",
           JSON.stringify({
-            photo: primaryFile ? "photo" : (primaryImage?.imageUrl ?? ""),
+            photo: primaryFile ? "photo" : resolvePhotoParam(primaryImage?.imageUrl),
             monthNum,
             dayNum,
             diaryText: bodyText,
@@ -474,10 +506,57 @@ export const publishProject = async (project: Project) => {
     }
   }
 
+  // 페이지 수가 spec 최소값에 미달하면 더미 페이지 채우기
+  const bookSpec = mockBookSpecs.find((s) => s.id === specUid);
+  const minPages = bookSpec?.minPages ?? 24;
+  const pageStep = bookSpec?.pageStep ?? 2;
+  const contentPageCount = project.generatedSections.reduce(
+    (acc, s) => acc + s.pages.filter((p) => p.kind === "content").length,
+    0,
+  );
+
+  if (contentPageCount < minPages - 1) {
+    // 커버 1장 제외, 나머지를 minPages - 1까지 채움
+    const needed = minPages - 1 - contentPageCount;
+    const paddingCount = Math.ceil(needed / pageStep) * pageStep;
+    console.log(`[publish] 페이지 부족 (${contentPageCount}/${minPages - 1}), ${paddingCount}개 패딩 추가`);
+    const storyTplUid = CONTENT_STORY_TEMPLATE[specUid] ?? CONTENT_STORY_TEMPLATE.PHOTOBOOK_A4_SC;
+
+    for (let i = 0; i < paddingCount; i++) {
+      const padForm = new FormData();
+      padForm.append("templateUid", storyTplUid);
+      const d = new Date();
+      padForm.append(
+        "parameters",
+        JSON.stringify(
+          specUid === "SQUAREBOOK_HC"
+            ? {
+                photo1: FALLBACK_IMAGE_URL,
+                date: `${d.getMonth() + 1}.${String(d.getDate() + i).padStart(2, "0")}`,
+                title: project.title,
+                diaryText: "",
+              }
+            : {
+                photo: FALLBACK_IMAGE_URL,
+                monthNum: String(d.getMonth() + 1).padStart(2, "0"),
+                dayNum: String((d.getDate() + i) % 28 + 1).padStart(2, "0"),
+                diaryText: "",
+              },
+        ),
+      );
+      await sweetBookRequest(`/books/${bookUid}/contents`, {
+        method: "POST",
+        body: padForm,
+      });
+    }
+  }
+
+  console.log("[publish] finalization 시작");
   const finalizationResponse = await sweetBookRequest<{
     data: { pageCount: number; finalizedAt: string };
   }>(`/books/${bookUid}/finalization`, {
     method: "POST",
+    headers: { "Content-Length": "0" },
   });
 
   return {
