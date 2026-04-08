@@ -5,6 +5,9 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8)](https://tailwindcss.com)
+[![Vercel](https://img.shields.io/badge/Deployed-Vercel-black)](https://sweetbook.vercel.app)
+
+**라이브 데모: [https://sweetbook.vercel.app](https://sweetbook.vercel.app)**
 
 ---
 
@@ -24,9 +27,11 @@
 | 📸 사진 수집 | 표지 이미지 + 본문 사진 다중 업로드 |
 | 🤖 AI 큐레이션 | OpenAI로 섹션 제목·인트로·카피 자동 생성 |
 | ✏️ 페이지 편집기 | 스프레드 레이아웃 미리보기, 텍스트·이미지 직접 편집, 섹션 순서 재배치 |
-| 📖 템플릿 선택 | SweetBook API의 실제 템플릿(일기장A/B, 구글포토북 등) 연동 |
+| 📖 3D 책 미리보기 | CSS preserve-3d 기반 입체 표지 + 페이지 플립 애니메이션 뷰어 |
+| 📋 템플릿 선택 | SweetBook API의 실제 템플릿(일기장A/B, 구글포토북 등) 연동 |
 | 💰 견적 조회 | `POST /orders/estimate` 실시간 가격 계산 |
 | 📦 원클릭 주문 | Books API 책 생성·최종화 → Orders API 주문까지 한 흐름으로 연결 |
+| 🔔 웹훅 수신 | 주문·제작·배송 상태 변경 이벤트 실시간 수신 (HMAC-SHA256 서명 검증) |
 
 ---
 
@@ -40,7 +45,7 @@
 ### 1. 설치
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/sweetbook.git
+git clone https://github.com/Navv6/sweetbook.git
 cd sweetbook
 npm install
 ```
@@ -59,6 +64,9 @@ SWEETBOOK_API_KEY=여기에_발급받은_키_입력
 
 # 선택 — OpenAI Key가 없으면 기본 카피로 자동 fallback
 OPENAI_API_KEY=
+
+# 선택 — 웹훅 서명 검증용 (파트너 포털 Webhook 설정에서 발급)
+SWEETBOOK_WEBHOOK_SECRET=
 
 # 선택 — Supabase (없으면 브라우저 로컬스토리지로 대체)
 NEXT_PUBLIC_SUPABASE_URL=
@@ -93,14 +101,15 @@ npm run dev
 |--------|------------|------|
 | `GET` | `/templates` | 템플릿 목록 조회 (판형별 실제 UID 매핑) |
 | `GET` | `/book-specs` | 책 사양 조회 (A4/A5 소프트커버, 스퀘어 하드커버) |
-| `POST` | `/books` | 새 책 생성 (bookSpecUid, title, externalRef) |
-| `POST` | `/books/{bookUid}/cover` | 표지 설정 (templateUid, 커버 이미지 FormData) |
-| `POST` | `/books/{bookUid}/contents` | 내지 페이지 추가 (gallery / story 템플릿 분기) |
-| `POST` | `/books/{bookUid}/finalization` | 책 최종화 (인쇄 준비) |
+| `POST` | `/books` | 새 책 생성 (bookSpecUid, title) |
+| `POST` | `/books/{bookUid}/cover` | 표지 설정 (templateUid, coverPhoto, dateRange) |
+| `POST` | `/books/{bookUid}/contents` | 내지 페이지 추가 (gallery/story 템플릿 분기) |
+| `POST` | `/books/{bookUid}/finalization` | 책 최종화 (인쇄 준비, 페이지 수 자동 패딩) |
 | `POST` | `/orders/estimate` | 수량·사양별 실시간 가격 견적 |
 | `POST` | `/orders` | 주문 생성 (배송지, bookUid, 수량) |
+| `Webhook` | `/api/webhooks/sweetbook` | 주문·제작·배송 이벤트 수신 (HMAC-SHA256 검증) |
 
-> 모든 `/books` 쓰기 요청에 `Idempotency-Key` 헤더를 포함해 중복 생성을 방지합니다.
+> 모든 `/books`, `/orders` 쓰기 요청에 `Idempotency-Key` 헤더를 포함해 중복 생성을 방지합니다.
 
 ---
 
@@ -108,7 +117,7 @@ npm run dev
 
 | AI 도구 | 활용 내용 |
 |---------|----------|
-| **Claude Code** | 전체 프로젝트 설계, API 연동 구조 설계, 버그 탐지 및 수정 (존재하지 않는 `/books/{uid}/photos` 엔드포인트 발견·제거, 잘못된 `gpt-5-mini` 모델명 수정, mock templateUid와 실제 API UID 불일치 발견 및 전면 교체) |
+| **Claude Code** | 전체 프로젝트 설계, API 연동 구조 설계, 버그 탐지 및 수정 (존재하지 않는 `/books/{uid}/photos` 엔드포인트 발견·제거, 잘못된 `gpt-5-mini` 모델명 수정, mock templateUid와 실제 API UID 불일치 발견 및 전면 교체, API 파라미터명 전수 검증) |
 | **OpenAI gpt-4o-mini** | 포토북 섹션 카피(제목·인트로·커버 문구) 런타임 자동 생성. API Key 없을 시 기본 카피로 graceful fallback |
 
 ---
@@ -132,9 +141,9 @@ Book Print API는 이 서비스의 핵심 인프라입니다. 1인 개발자 파
 ### 더 시간이 있었다면 추가했을 기능
 
 1. **이미지 EXIF 자동 태깅** — 촬영 날짜·위치를 읽어 여행 포토북 섹션 자동 구분
-2. **실시간 PDF 미리보기** — 주문 전 실제 인쇄 결과에 가까운 preview 제공
+2. **실시간 PDF 미리보기** — 주문 전 실제 인쇄 결과물 PDF 다운로드
 3. **파트너 대시보드** — 여러 고객 프로젝트를 하나의 계정에서 관리하는 B2B 모드
-4. **Webhook 연동** — 주문 상태 변경(인쇄 완료, 배송 시작) 실시간 알림
+4. **주문 상태 Push 알림** — Webhook 이벤트를 브라우저 알림으로 연결
 
 ---
 
@@ -143,27 +152,31 @@ Book Print API는 이 서비스의 핵심 인프라입니다. 1인 개발자 파
 ```
 sweetbook/
 ├── app/
-│   ├── page.tsx               # 랜딩 페이지
-│   ├── studio/new/            # 프로젝트 생성
-│   ├── projects/[id]/         # 페이지 편집기
-│   ├── checkout/[id]/         # 견적 + 배송지 입력
-│   ├── orders/[id]/           # 주문 확인
-│   └── api/projects/[id]/
-│       ├── generate/          # AI 레이아웃 생성
-│       ├── estimate/          # 견적 조회
-│       ├── publish/           # Books API 연동
-│       └── order/             # Orders API 연동
+│   ├── page.tsx                    # 랜딩 페이지
+│   ├── studio/new/                 # 프로젝트 생성 마법사
+│   ├── projects/[id]/              # 페이지 편집기
+│   ├── checkout/[id]/              # 견적 + 배송지 입력
+│   ├── orders/[id]/                # 주문 확인
+│   └── api/
+│       ├── projects/[id]/
+│       │   ├── generate/           # AI 레이아웃 생성
+│       │   ├── layout/             # 섹션 순서 재배치
+│       │   ├── estimate/           # 견적 조회
+│       │   ├── publish/            # Books API 연동
+│       │   └── order/              # Orders API 연동
+│       └── webhooks/sweetbook/     # 웹훅 수신 (HMAC-SHA256 검증)
 ├── components/
-│   ├── editor/                # 페이지 캔버스, 인스펙터 패널
-│   ├── studio/                # 템플릿·판형 선택기
-│   └── ui/                    # 공통 Button, Card, Input
+│   ├── editor/                     # 페이지 캔버스, 인스펙터 패널, 섹션 목록
+│   ├── preview/                    # 3D 책 미리보기 모달
+│   ├── studio/                     # 템플릿·판형 선택기
+│   └── ui/                         # 공통 Button, Card, Input
 ├── lib/
-│   ├── api.ts                 # SweetBook API + OpenAI 클라이언트
-│   ├── layout.ts              # 레이아웃 생성 알고리즘
-│   └── mock.ts                # API Key 없을 때 fallback 데이터
-├── store/                     # Zustand 상태 (브라우저 persist)
-├── types/                     # TypeScript 타입 정의
-└── .env.example               # 환경변수 예시
+│   ├── api.ts                      # SweetBook API + OpenAI 클라이언트
+│   ├── layout.ts                   # 레이아웃 생성 알고리즘
+│   └── mock.ts                     # API Key 없을 때 fallback 데이터
+├── store/                          # Zustand 상태 (브라우저 persist)
+├── types/                          # TypeScript 타입 정의
+└── .env.example                    # 환경변수 예시
 ```
 
 ---
@@ -186,6 +199,7 @@ sweetbook/
 |------|-----------|------|
 | `SWEETBOOK_API_KEY` | **필수** | SweetBook Sandbox API Key |
 | `SWEETBOOK_API_BASE_URL` | 선택 | 기본값: `https://api-sandbox.sweetbook.com/v1` |
+| `SWEETBOOK_WEBHOOK_SECRET` | 선택 | 웹훅 서명 검증 시크릿 (파트너 포털 발급) |
 | `OPENAI_API_KEY` | 선택 | 없으면 기본 카피로 fallback |
 | `NEXT_PUBLIC_SUPABASE_URL` | 선택 | 없으면 로컬스토리지 사용 |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 선택 | Supabase 인증 |
