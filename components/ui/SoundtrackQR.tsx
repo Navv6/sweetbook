@@ -15,7 +15,7 @@ export function SoundtrackQR({
 }: SoundtrackQRProps) {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? "https://sweetbook.vercel.app";
-  const url = `${baseUrl}/soundtrack/${projectId}`;
+  const url = `${baseUrl}/soundtrack/${projectId}?t=${encodeURIComponent(projectTitle)}`;
 
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">

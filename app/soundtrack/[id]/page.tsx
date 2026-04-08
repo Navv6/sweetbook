@@ -1,31 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 
 import { useProjectStore } from "@/store/useProjectStore";
 
-export default function SoundtrackPage() {
+function SoundtrackContent() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const project = useProjectStore((state) => state.projects[params.id]);
+
+  // 폰으로 QR 스캔 시 Zustand 스토어가 없을 수 있어 → URL 파라미터로 fallback
+  const titleFromUrl = searchParams.get("t") ?? null;
+  const displayTitle = project?.title ?? titleFromUrl ?? "포토북 사운드트랙";
 
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!project) {
-      setLoading(false);
-      return;
-    }
-
     const fetchMusic = async () => {
       try {
         const response = await fetch(`/api/projects/${params.id}/music`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ project }),
+          body: JSON.stringify({
+            project: project ?? {
+              id: params.id,
+              title: displayTitle,
+              generatedSections: [],
+            },
+          }),
         });
-        const data = (await response.json()) as { audioUrl: string | null; isMock: boolean };
+        const data = (await response.json()) as {
+          audioUrl: string | null;
+          isMock: boolean;
+        };
         setAudioUrl(data.audioUrl);
       } catch {
         setAudioUrl(null);
@@ -35,7 +44,8 @@ export default function SoundtrackPage() {
     };
 
     void fetchMusic();
-  }, [params.id, project]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
 
   return (
     <main
@@ -46,7 +56,6 @@ export default function SoundtrackPage() {
       }}
     >
       <div className="flex flex-col items-center gap-10 text-center max-w-lg w-full">
-        {/* 레이블 */}
         <p
           className="text-xs uppercase tracking-[0.3em]"
           style={{ color: "rgba(255,255,255,0.4)" }}
@@ -54,23 +63,34 @@ export default function SoundtrackPage() {
           {"SweetBook Soundtrack"}
         </p>
 
-        {/* 책 제목 */}
+        {/* 음표 아이콘 */}
+        <div style={{ color: "rgba(255,255,255,0.15)", fontSize: "4rem" }}>
+          {"♪"}
+        </div>
+
         <h1
-          className="text-4xl font-semibold leading-tight"
+          className="text-3xl font-semibold leading-tight"
           style={{ color: "rgba(255,255,255,0.95)" }}
         >
-          {project?.title ?? "포토북 사운드트랙"}
+          {displayTitle}
         </h1>
 
-        {/* 오디오 영역 */}
         <div className="w-full">
           {loading ? (
-            <p
-              className="text-sm"
-              style={{ color: "rgba(255,255,255,0.5)" }}
-            >
-              {"음악을 생성하고 있습니다…"}
-            </p>
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="h-1 w-48 overflow-hidden rounded-full"
+                style={{ background: "rgba(255,255,255,0.1)" }}
+              >
+                <div
+                  className="h-full w-1/2 rounded-full animate-pulse"
+                  style={{ background: "rgba(255,255,255,0.4)" }}
+                />
+              </div>
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {"이 포토북을 위한 음악을 생성하고 있습니다…"}
+              </p>
+            </div>
           ) : audioUrl ? (
             <audio
               controls
@@ -84,21 +104,28 @@ export default function SoundtrackPage() {
           ) : (
             <p
               className="text-sm leading-relaxed"
-              style={{ color: "rgba(255,255,255,0.5)" }}
+              style={{ color: "rgba(255,255,255,0.4)" }}
             >
-              {"이 포토북을 위한 음악을 준비하고 있습니다"}
+              {"REPLICATE_API_TOKEN을 설정하면 이 포토북만의 AI 음악이 생성됩니다."}
             </p>
           )}
         </div>
 
-        {/* 하단 브랜딩 */}
         <p
           className="text-[11px] uppercase tracking-[0.25em] mt-8"
-          style={{ color: "rgba(255,255,255,0.25)" }}
+          style={{ color: "rgba(255,255,255,0.2)" }}
         >
-          {"SweetBook Studio"}
+          {"Powered by SweetBook Studio"}
         </p>
       </div>
     </main>
+  );
+}
+
+export default function SoundtrackPage() {
+  return (
+    <Suspense>
+      <SoundtrackContent />
+    </Suspense>
   );
 }
