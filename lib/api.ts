@@ -340,6 +340,9 @@ export const publishProject = async (project: Project) => {
   const specUid = project.bookSpecId;
   console.log("[publish] specUid:", specUid, "title:", project.title);
 
+  // 재시도 시 같은 bookUid 재사용 방지: 매 publish 마다 새 book 생성
+  // (idempotency key에 timestamp 포함)
+  const publishAttemptKey = `book-${project.id}-${Date.now()}`;
   const createResponse = await sweetBookRequest<{ data: { bookUid: string } }>(
     "/books",
     {
@@ -350,10 +353,9 @@ export const publishProject = async (project: Project) => {
       body: JSON.stringify({
         title: project.title,
         bookSpecUid: specUid,
-        externalRef: project.id,
       }),
     },
-    `book-${project.id}`,
+    publishAttemptKey,
   );
 
   const bookUid = createResponse.data.bookUid;
