@@ -1,0 +1,15 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="1200" fill="#EAD7C8"/>
+  <rect x="72" y="72" width="1056" height="1056" rx="56" fill="url(#paint0_linear)"/>
+  <circle cx="944" cy="284" r="154" fill="#F7E8D5"/>
+  <path d="M0 892C138 768 312 706 522 706C756 706 931 798 1200 986V1200H0V892Z" fill="#C36B43"/>
+  <path d="M95 886C218 772 395 722 539 722C735 722 915 779 1106 907V1128H95V886Z" fill="#7D4029"/>
+  <text x="120" y="168" fill="#FFF8F2" font-size="44" font-family="Georgia, serif">SweetBook Demo Cover</text>
+  <defs>
+    <linearGradient id="paint0_linear" x1="144" y1="114" x2="1029" y2="1029" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B55A38"/>
+      <stop offset="0.5" stop-color="#E5A17E"/>
+      <stop offset="1" stop-color="#F7E5D4"/>
+    </linearGradient>
+  </defs>
+</svg>
