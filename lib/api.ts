@@ -588,32 +588,18 @@ export const createProjectOrder = async (
 
   console.log("[order] bookUid:", project.sweetbookBookUid, "qty:", quantity);
 
-  try {
-    const response = await sweetBookRequest<{ data: Order }>(
-      "/orders",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: [{ bookUid: project.sweetbookBookUid, quantity }],
-          shipping: cleanShipping,
-          externalRef: project.id,
-        }),
-      },
-      `order-${project.id}-${Date.now()}`,
-    );
-    return response.data;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : "";
-    // 크레딧 부족은 Sandbox 환경 제약 — 발행은 성공했으므로 mock 주문으로 처리
-    if (msg.includes("크레딧") || msg.includes("credit") || msg.includes("Credit")) {
-      console.warn("[order] 크레딧 부족 → Sandbox mock 주문으로 대체");
-      return {
-        ...mockOrderResponse(project, quantity, shipping),
-        orderUid: `or_sandbox_${project.sweetbookBookUid}`,
-        isTest: true,
-      };
-    }
-    throw error;
-  }
+  const response = await sweetBookRequest<{ data: Order }>(
+    "/orders",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: [{ bookUid: project.sweetbookBookUid, quantity }],
+        shipping: cleanShipping,
+        externalRef: project.id,
+      }),
+    },
+    `order-${project.id}-${Date.now()}`,
+  );
+  return response.data;
 };
