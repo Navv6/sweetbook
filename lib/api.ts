@@ -46,14 +46,11 @@ const sweetBookRequest = async <T>(
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
-    // 가능한 한 상세한 에러 메시지 구성
-    const detail =
-      payload?.message ??
-      (payload?.errors
-        ? JSON.stringify(payload.errors)
-        : null) ??
-      `${path} 요청 실패 (${response.status})`;
-    const msg = `[${path}] ${detail}`;
+    const base = payload?.message ?? `요청 실패 (${response.status})`;
+    const errorsStr = Array.isArray(payload?.errors) && payload.errors.length > 0
+      ? `: ${(payload.errors as string[]).join("; ")}`
+      : "";
+    const msg = `[${path}] ${base}${errorsStr}`;
     console.error("[sweetbook]", msg, JSON.stringify(payload));
     throw new Error(msg);
   }
@@ -579,25 +576,30 @@ export const createProjectOrder = async (
     return mockOrderResponse(project, quantity, shipping);
   }
 
+  // optional 빈 문자열 필드는 undefined로 제거 (API validation 방지)
+  const cleanShipping = {
+    recipientName: shipping.recipientName,
+    recipientPhone: shipping.recipientPhone,
+    postalCode: shipping.postalCode,
+    address1: shipping.address1,
+    ...(shipping.address2 ? { address2: shipping.address2 } : {}),
+    ...(shipping.memo ? { memo: shipping.memo } : {}),
+  };
+
+  console.log("[order] bookUid:", project.sweetbookBookUid, "qty:", quantity);
+
   const response = await sweetBookRequest<{ data: Order }>(
     "/orders",
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: [
-          {
-            bookUid: project.sweetbookBookUid,
-            quantity,
-          },
-        ],
-        shipping,
+        items: [{ bookUid: project.sweetbookBookUid, quantity }],
+        shipping: cleanShipping,
         externalRef: project.id,
       }),
     },
-    `order-${project.id}`,
+    `order-${project.id}-${Date.now()}`,
   );
 
   return response.data;

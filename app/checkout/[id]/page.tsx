@@ -37,29 +37,30 @@ export default function CheckoutPage() {
       0,
     ) ?? 0;
 
+  // project.id와 quantity가 바뀔 때만 견적 재계산 (setEstimate는 안정적 참조이지만 deps에서 제외)
   useEffect(() => {
     if (!project) {
       return;
     }
 
+    let cancelled = false;
+
     void fetch(`/api/projects/${project.id}/estimate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        project,
-        quantity,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project, quantity }),
     })
-      .then((response) => response.json())
+      .then((r) => r.json())
       .then((payload: { estimate: Project["estimate"] }) => {
-        if (payload.estimate) {
+        if (!cancelled && payload.estimate) {
           setEstimate(project.id, payload.estimate);
         }
       })
       .catch(() => undefined);
-  }, [project, quantity, setEstimate]);
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, quantity]);
 
   const handleCheckout = async () => {
     if (!project) {
