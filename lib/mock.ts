@@ -18,8 +18,8 @@ export const mockTemplates: TemplateOption[] = curatedThemeFamilies.map(
 export const mockBookSpecs: BookSpecOption[] = [
   {
     id: "PHOTOBOOK_A4_SC",
-    name: "A4 Softcover",
-    description: "210 x 297 mm. Balanced for image-led editorial books.",
+    name: "A4 소프트커버",
+    description: "210 x 297 mm. 이미지 중심 에디토리얼 책에 균형 잡힌 판형.",
     width: 210,
     height: 297,
     minPages: 24,
@@ -28,8 +28,8 @@ export const mockBookSpecs: BookSpecOption[] = [
   },
   {
     id: "PHOTOBOOK_A5_SC",
-    name: "A5 Softcover",
-    description: "148 x 210 mm. Compact format for diaries and lighter photo books.",
+    name: "A5 소프트커버",
+    description: "148 x 210 mm. 다이어리와 가벼운 포토북에 적합한 소형 판형.",
     width: 148,
     height: 210,
     minPages: 50,
@@ -38,8 +38,8 @@ export const mockBookSpecs: BookSpecOption[] = [
   },
   {
     id: "SQUAREBOOK_HC",
-    name: "Square Hardcover",
-    description: "243 x 248 mm. Wide format suited for portfolio-style photo books.",
+    name: "정사각 하드커버",
+    description: "243 x 248 mm. 포트폴리오형 포토북에 어울리는 와이드 판형.",
     width: 243,
     height: 248,
     minPages: 24,
@@ -50,19 +50,19 @@ export const mockBookSpecs: BookSpecOption[] = [
 
 export const mockDemoCards = [
   {
-    title: "Collect content",
+    title: "콘텐츠 수집",
     description:
-      "Start from a cover image and a small set of body photos to generate a complete draft.",
+      "표지 이미지와 본문 사진 몇 장으로 시작해 완성된 초안을 자동 생성합니다.",
   },
   {
-    title: "Edit template parameters",
+    title: "템플릿 파라미터 편집",
     description:
-      "Adjust the actual SweetBook template fields instead of editing a custom draft layout.",
+      "자체 레이아웃이 아닌 실제 SweetBook 템플릿 필드를 직접 조정합니다.",
   },
   {
-    title: "Publish and order",
+    title: "출판 및 주문",
     description:
-      "Run the same create, finalize, and order flow with either Sandbox APIs or the mock fallback.",
+      "Sandbox API 또는 목 모드로 생성·확정·주문 흐름을 동일하게 실행합니다.",
   },
 ];
 
@@ -84,7 +84,7 @@ export const mockOrderResponse = (
   return {
     orderUid: `or_mock_${project.id}`,
     orderStatus: 20,
-    orderStatusDisplay: "Order created",
+    orderStatusDisplay: "주문 생성됨",
     totalAmount: subtotal + 3000,
     totalProductAmount: subtotal,
     totalShippingFee: 3000,
@@ -105,7 +105,7 @@ export const mockOrderResponse = (
         unitPrice: subtotal,
         itemAmount: subtotal,
         itemStatus: 20,
-        itemStatusDisplay: "Order created",
+        itemStatusDisplay: "주문 생성됨",
       },
     ],
   };
@@ -130,7 +130,7 @@ export const buildMockEstimate = (
     subtotal,
     total: subtotal + 3000,
     note:
-      "Mock mode reproduces the checkout flow without creating a real payment.",
+      "목 모드: 실제 결제 없이 결제 흐름을 재현합니다.",
   };
 };
 
@@ -138,7 +138,7 @@ export const createDemoContentItems = (): ContentItem[] => [
   {
     id: "demo_1",
     kind: "image",
-    title: "Camera",
+    title: "카메라",
     imageUrl:
       "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=800&q=80&auto=format&fit=crop",
     fileName: "demo-camera.jpg",
@@ -147,7 +147,7 @@ export const createDemoContentItems = (): ContentItem[] => [
   {
     id: "demo_2",
     kind: "image",
-    title: "Mountain",
+    title: "산",
     imageUrl:
       "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80&auto=format&fit=crop",
     fileName: "demo-mountain.jpg",
@@ -156,7 +156,7 @@ export const createDemoContentItems = (): ContentItem[] => [
   {
     id: "demo_3",
     kind: "image",
-    title: "Portrait",
+    title: "인물",
     imageUrl:
       "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80&auto=format&fit=crop",
     fileName: "demo-portrait.jpg",
@@ -165,7 +165,7 @@ export const createDemoContentItems = (): ContentItem[] => [
   {
     id: "demo_4",
     kind: "image",
-    title: "Travel",
+    title: "여행",
     imageUrl:
       "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80&auto=format&fit=crop",
     fileName: "demo-travel.jpg",
@@ -174,7 +174,7 @@ export const createDemoContentItems = (): ContentItem[] => [
   {
     id: "demo_5",
     kind: "image",
-    title: "Cafe",
+    title: "카페",
     imageUrl:
       "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80&auto=format&fit=crop",
     fileName: "demo-cafe.jpg",
@@ -183,7 +183,7 @@ export const createDemoContentItems = (): ContentItem[] => [
   {
     id: "demo_6",
     kind: "image",
-    title: "Night",
+    title: "야경",
     imageUrl:
       "https://images.unsplash.com/photo-1474540412665-1cdae210ae6b?w=800&q=80&auto=format&fit=crop",
     fileName: "demo-night.jpg",

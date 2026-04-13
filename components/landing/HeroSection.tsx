@@ -8,31 +8,29 @@ export function HeroSection() {
         <div className="grid items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-8">
             <p className="section-label">
-              {"AI Assisted Photobook Publishing"}
+              AI 포토북 출판 플랫폼
             </p>
             <div className="space-y-6">
               <h1 className="display-copy max-w-4xl text-5xl leading-[0.94] font-semibold text-foreground md:text-7xl">
-                {"\uD761\uC5B4\uC9C4 \uC7A5\uBA74\uC744"}
+                흩어진 장면을
                 <br />
-                {"\uCD9C\uD310 \uAC00\uB2A5\uD55C \uD55C \uAD8C\uC758"}
+                출판 가능한 한 권의
                 <br />
                 <span className="italic font-normal">
-                  {"\uBAA8\uB178\uADF8\uB798\uD504"}
+                  모노그래프
                 </span>
-                {"\uB85C \uC5EE\uC2B5\uB2C8\uB2E4."}
+                로 엮습니다.
               </h1>
               <p className="editorial-copy max-w-2xl text-lg">
-                {
-                  "\uC0AC\uC9C4, \uC9E7\uC740 \uAE30\uB85D, \uC791\uC740 \uBA54\uBAA8\uB97C \uBAA8\uC544 \uC5D0\uB514\uD1A0\uB9AC\uC5BC \uD3EC\uD1A0\uBD81 \uCD08\uC548\uC73C\uB85C \uC815\uB9AC\uD558\uACE0, SweetBook Sandbox \uC8FC\uBB38\uAE4C\uC9C0 \uD55C \uD750\uB984\uC73C\uB85C \uC5F0\uACB0\uD569\uB2C8\uB2E4."
-                }
+                사진, 짧은 기록, 작은 메모를 모아 에디토리얼 포토북 초안으로 정리하고, SweetBook Sandbox 주문까지 한 흐름으로 연결합니다.
               </p>
             </div>
             <div className="flex flex-wrap gap-4">
               <Button href="/studio/new">
-                {"\uCCAB \uD504\uB85C\uC81D\uD2B8 \uC2DC\uC791"}
+                첫 프로젝트 시작
               </Button>
               <Button href="#demo" variant="secondary">
-                {"\uC1FC\uCF00\uC774\uC2A4 \uBCF4\uAE30"}
+                쇼케이스 보기
               </Button>
             </div>
           </div>
@@ -45,34 +43,32 @@ export function HeroSection() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="section-label">
-                        {"Editorial Cover Preview"}
+                        에디토리얼 표지 미리보기
                       </p>
                       <p className="display-copy mt-3 text-2xl italic">
-                        {"Monograph No. 04"}
+                        모노그래프 No. 04
                       </p>
                     </div>
                     <div className="rounded-full bg-surface-container-low px-3 py-1 text-xs font-semibold text-secondary">
-                      {"Sandbox Ready"}
+                      샌드박스
                     </div>
                   </div>
                   <div className="mt-8 grid gap-6 md:grid-cols-[0.9fr_1.1fr]">
                     <div className="space-y-4">
                       <div className="aspect-[3/4] overflow-hidden rounded-sm bg-[url('/demo/cover-morning.svg')] bg-cover bg-center" />
                       <p className="text-xs uppercase tracking-[0.18em] text-secondary">
-                        {"Collector's Edition"}
+                        컬렉터스 에디션
                       </p>
                     </div>
                     <div className="flex flex-col justify-between rounded-[1.5rem] bg-surface-container-low p-6">
                       <div>
                         <p className="display-copy text-3xl leading-tight font-semibold">
-                          {"\uAE30\uC5B5\uC744 \uC815\uB9AC\uD558\uB294"}
+                          기억을 정리하는
                           <br />
-                          {"\uCDA9\uBD84\uD55C \uC5EC\uBC31"}
+                          충분한 여백
                         </p>
                         <p className="editorial-copy mt-4 text-sm">
-                          {
-                            "\uCEE4\uBC84, \uC139\uC158 \uC81C\uBAA9, \uD398\uC774\uC9C0 \uD750\uB984, \uC8FC\uBB38 \uC694\uC57D\uAE4C\uC9C0 \uD558\uB098\uC758 \uC5D0\uB514\uD1A0\uB9AC\uC5BC \uACBD\uD5D8\uC73C\uB85C \uC124\uACC4\uD55C \uCD9C\uD310 \uC2A4\uD29C\uB514\uC624 \uC785\uB2C8\uB2E4."
-                          }
+                          커버, 섹션 제목, 페이지 흐름, 주문 요약까지 하나의 에디토리얼 경험으로 설계한 출판 스튜디오 입니다.
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">

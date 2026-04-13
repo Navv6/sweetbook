@@ -4,27 +4,27 @@ import { mockDemoCards } from "@/lib/mock";
 
 const showcaseItems = [
   {
-    title: "Coastline Journal",
+    title: "해안 일지",
     image: "/demo/archive-wall.svg",
     aspect: "aspect-[3/4]",
   },
   {
-    title: "Studio Notes",
+    title: "스튜디오 노트",
     image: "/demo/editorial-desk.svg",
     aspect: "aspect-[4/5]",
   },
   {
-    title: "Late Walk",
+    title: "늦은 산책",
     image: "/demo/night-walk.svg",
     aspect: "aspect-[3/4]",
   },
   {
-    title: "Travel Essay",
+    title: "여행 에세이",
     image: "/demo/travel-note.svg",
     aspect: "aspect-[4/3]",
   },
   {
-    title: "Table Archive",
+    title: "테이블 아카이브",
     image: "/demo/dinner-table.svg",
     aspect: "aspect-[4/5]",
   },
@@ -37,10 +37,10 @@ export function DemoSection() {
         <div className="space-y-10">
           <div className="max-w-3xl">
             <p className="section-label">
-              {"\uC815\uAD50\uD55C \uCD9C\uD310 \uD750\uB984"}
+              정교한 출판 흐름
             </p>
             <h2 className="display-copy mt-4 text-4xl font-semibold md:text-6xl">
-              {"\uCEE8\uD150\uCE20 \uC815\uB9AC\uC5D0\uC11C \uCD9C\uD310 \uC900\uBE44\uAE4C\uC9C0"}
+              콘텐츠 정리에서 출판 준비까지
             </h2>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
@@ -60,15 +60,13 @@ export function DemoSection() {
         <Container>
           <div className="mb-14">
             <p className="section-label">
-              {"\uC644\uC131 \uC608\uC2DC"}
+              완성 예시
             </p>
             <h2 className="display-copy mt-4 text-4xl font-semibold md:text-6xl">
-              {"\uC5D0\uB514\uD1A0\uB9AC\uC5BC \uC1FC\uCF00\uC774\uC2A4"}
+              에디토리얼 쇼케이스
             </h2>
             <p className="editorial-copy mt-4 max-w-2xl text-sm">
-              {
-                "\uD3C9\uB4F1\uD55C \uADF8\uB9AC\uB4DC\uBCF4\uB2E4 \uBC00\uB3C4 \uC640 \uC5EC\uBC31 \uCC28\uC774\uB97C \uD65C\uC6A9\uD574, \uAC01 \uD504\uB85C\uC81D\uD2B8\uAC00 \uD558\uB098\uC758 \uC804\uC2DC \uC791\uD488\uCC98\uB7FC \uBCF4\uC774\uB3C4\uB85D \uAD6C\uC131\uD569\uB2C8\uB2E4."
-              }
+              평등한 그리드보다 밀도 와 여백 차이를 활용해, 각 프로젝트가 하나의 전시 작품처럼 보이도록 구성합니다.
             </p>
           </div>
           <div className="grid gap-10 md:grid-cols-3">
@@ -112,12 +110,12 @@ export function DemoSection() {
               ))}
               <div className="rounded-2xl bg-surface-container-high p-8">
                 <p className="display-copy text-4xl font-semibold">
-                  {"\uB2F9\uC2E0\uC758 \uAE30\uB85D\uC744"}
+                  당신의 기록을
                   <br />
                   <span className="italic font-normal">
-                    {"\uC544\uB984\uB2F5\uAC8C \uBCF4\uC874"}
+                    아름답게 보존
                   </span>
-                  {"\uD558\uC138\uC694."}
+                  하세요.
                 </p>
               </div>
             </div>

@@ -5,7 +5,7 @@ const formatBookSpecSize = (bookSpec: BookSpecOption) =>
   `${bookSpec.width} x ${bookSpec.height} mm`;
 
 const formatBookSpecPages = (bookSpec: BookSpecOption) =>
-  `${bookSpec.minPages}-${bookSpec.maxPages} pages | +${bookSpec.pageStep} step`;
+  `${bookSpec.minPages}–${bookSpec.maxPages}페이지 | +${bookSpec.pageStep} 단위`;
 
 export function PreviewPanel({
   title,
@@ -56,7 +56,7 @@ export function PreviewPanel({
                   {template.coverLabel}
                 </span>
                 <span className="text-xs uppercase tracking-[0.18em] text-white/70">
-                  {`${Math.max(imageCount, 6)} stills`}
+                  {`${Math.max(imageCount, 6)}장`}
                 </span>
               </div>
               <div>
