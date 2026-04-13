@@ -217,33 +217,13 @@ export default function NewProjectPage() {
       });
 
       if (!createResponse.ok) {
-        throw new Error("프로젝트를 생성하지 못했습니다.");
+        const errorBody = await createResponse.json().catch(() => ({})) as { message?: string };
+        throw new Error(errorBody.message ?? "프로젝트를 생성하지 못했습니다.");
       }
 
-      const createdProject = (await createResponse.json()) as { project: Project };
-
-      const generateResponse = await fetch(
-        `/api/projects/${createdProject.project.id}/generate`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            project: createdProject.project,
-          }),
-        },
-      );
-
-      if (!generateResponse.ok) {
-        throw new Error("템플릿 페이지를 생성하지 못했습니다.");
-      }
-
-      const generatedProject = (await generateResponse.json()) as {
-        project: Project;
-      };
-      upsertProject(generatedProject.project);
-      router.push(`/projects/${generatedProject.project.id}`);
+      const { project } = (await createResponse.json()) as { project: Project };
+      upsertProject(project);
+      router.push(`/projects/${project.id}`);
     } catch (error) {
       alert(
         error instanceof Error
