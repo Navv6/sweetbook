@@ -29,9 +29,6 @@ export function HeroSection() {
               <Button href="/studio/new">
                 첫 프로젝트 시작
               </Button>
-              <Button href="#demo" variant="secondary">
-                쇼케이스 보기
-              </Button>
             </div>
           </div>
 
