@@ -42,6 +42,7 @@ export default function EditorPage() {
 
   const project = useProjectStore((state) => state.projects[params.id]);
   const replaceSections = useProjectStore((state) => state.replaceSections);
+  const duplicateSection = useProjectStore((state) => state.duplicateSection);
   const updatePageParameters = useProjectStore(
     (state) => state.updatePageParameters,
   );
@@ -273,7 +274,10 @@ export default function EditorPage() {
           <div className="mb-6 flex flex-wrap items-center gap-6 rounded-full bg-surface-container-low px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
             <span>{project.templateId}</span>
             <span>{project.bookSpecId}</span>
-            <span>{`${pageCount}페이지`}</span>
+            <span className={pageCount < 24 ? "text-red-500" : ""}>
+              {`${pageCount}페이지`}
+              {pageCount < 24 && ` (최소 24페이지 필요)`}
+            </span>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1.75fr)_320px]">
@@ -292,6 +296,9 @@ export default function EditorPage() {
                   setSelectedFieldKey(null);
                 }}
                 onMove={handleMoveSection}
+                onDuplicate={(sectionId) => {
+                  duplicateSection(project.id, sectionId);
+                }}
               />
             </aside>
 

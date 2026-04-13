@@ -5,14 +5,16 @@ export function SectionList({
   selectedSectionId,
   onSelect,
   onMove,
+  onDuplicate,
 }: {
   sections: GeneratedSection[];
   selectedSectionId: string | null;
   onSelect: (sectionId: string) => void;
   onMove: (sectionId: string, direction: "up" | "down") => void;
+  onDuplicate: (sectionId: string) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {sections.map((section, index) => {
         const page = section.pages[0];
         const isSelected = selectedSectionId === section.id;
@@ -56,6 +58,17 @@ export function SectionList({
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path d="M7 3V11M10.5 7.5L7 11L3.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-label="섹션 복제"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-container-low text-secondary transition hover:bg-surface-container-high"
+                onClick={() => onDuplicate(section.id)}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M3 10V3.5A1.5 1.5 0 0 1 4.5 2H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </button>
             </div>

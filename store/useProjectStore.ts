@@ -93,6 +93,7 @@ type ProjectStore = {
   getProject: (projectId: string) => Project | undefined;
   replaceSections: (projectId: string, sections: GeneratedSection[]) => void;
   reorderSections: (projectId: string, sectionOrder: string[]) => void;
+  duplicateSection: (projectId: string, sectionId: string) => void;
   updatePageParameters: (
     projectId: string,
     pageId: string,
@@ -174,6 +175,45 @@ export const useProjectStore = create<ProjectStore>()(
             return {
               ...project,
               generatedSections: reordered,
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        })),
+      duplicateSection: (projectId, sectionId) =>
+        set((state) => ({
+          projects: updateProjectRecord(state.projects, projectId, (project) => {
+            const index = project.generatedSections.findIndex(
+              (s) => s.id === sectionId,
+            );
+            if (index < 0) return project;
+
+            const source = project.generatedSections[index];
+            const newSectionId = crypto.randomUUID();
+            const duplicate: GeneratedSection = {
+              ...source,
+              id: newSectionId,
+              pages: source.pages.map((page) => ({
+                ...page,
+                id: crypto.randomUUID(),
+                sectionId: newSectionId,
+              })),
+            };
+
+            const next = [...project.generatedSections];
+            next.splice(index + 1, 0, duplicate);
+
+            let pageNumber = 1;
+            const renumbered = next.map((section) => ({
+              ...section,
+              pages: section.pages.map((page) => ({
+                ...page,
+                pageNumber: pageNumber++,
+              })),
+            }));
+
+            return {
+              ...project,
+              generatedSections: renumbered,
               updatedAt: new Date().toISOString(),
             };
           }),
