@@ -5,27 +5,27 @@ import { mockDemoCards } from "@/lib/mock";
 const showcaseItems = [
   {
     title: "해안 일지",
-    image: "/demo/archive-wall.svg",
+    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80&auto=format&fit=crop",
     aspect: "aspect-[3/4]",
   },
   {
     title: "스튜디오 노트",
-    image: "/demo/editorial-desk.svg",
+    image: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&q=80&auto=format&fit=crop",
     aspect: "aspect-[4/5]",
   },
   {
     title: "늦은 산책",
-    image: "/demo/night-walk.svg",
+    image: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80&auto=format&fit=crop",
     aspect: "aspect-[3/4]",
   },
   {
     title: "여행 에세이",
-    image: "/demo/travel-note.svg",
+    image: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80&auto=format&fit=crop",
     aspect: "aspect-[4/3]",
   },
   {
     title: "테이블 아카이브",
-    image: "/demo/dinner-table.svg",
+    image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80&auto=format&fit=crop",
     aspect: "aspect-[4/5]",
   },
 ];

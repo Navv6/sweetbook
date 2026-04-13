@@ -55,7 +55,7 @@ export function HeroSection() {
                   </div>
                   <div className="mt-8 grid gap-6 md:grid-cols-[0.9fr_1.1fr]">
                     <div className="space-y-4">
-                      <div className="aspect-[3/4] overflow-hidden rounded-sm bg-[url('/demo/cover-morning.svg')] bg-cover bg-center" />
+                      <div className="aspect-[3/4] overflow-hidden rounded-sm bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=600&q=80&auto=format&fit=crop')" }} />
                       <p className="text-xs uppercase tracking-[0.18em] text-secondary">
                         컬렉터스 에디션
                       </p>
@@ -72,8 +72,8 @@ export function HeroSection() {
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="aspect-[4/3] rounded-[1rem] bg-[url('/demo/editorial-desk.svg')] bg-cover bg-center" />
-                        <div className="aspect-[4/3] rounded-[1rem] bg-[url('/demo/archive-wall.svg')] bg-cover bg-center" />
+                        <div className="aspect-[4/3] rounded-[1rem] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=80&auto=format&fit=crop')" }} />
+                        <div className="aspect-[4/3] rounded-[1rem] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80&auto=format&fit=crop')" }} />
                       </div>
                     </div>
                   </div>

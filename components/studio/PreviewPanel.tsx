@@ -23,7 +23,7 @@ export function PreviewPanel({
   const aspectRatio = `${bookSpec.width} / ${bookSpec.height}`;
   const previewTitle = title.trim() || "제목 없는 기록";
   const previewCoverImageUrl =
-    sanitizeDisplayImageUrl(coverImageUrl) ?? "/demo/cover-morning.svg";
+    sanitizeDisplayImageUrl(coverImageUrl) ?? "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80&auto=format&fit=crop";
 
   return (
     <aside className="glass-panel sticky top-28 rounded-[2rem] p-5 lg:p-6">
