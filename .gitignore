@@ -38,6 +38,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# claude code internal
+.claude/
+
+# internal documents
+sweetbook-api-review.md
+*.pdf
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

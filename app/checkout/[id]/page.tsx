@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Container } from "@/components/layout/Container";
 import { Header } from "@/components/layout/Header";
@@ -9,6 +9,7 @@ import { BookPreviewModal } from "@/components/preview/BookPreviewModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { sanitizeDisplayImageUrl } from "@/lib/media";
 import { useProjectStore } from "@/store/useProjectStore";
 import type { Order, Project, ShippingInfo } from "@/types/project";
 
@@ -21,14 +22,15 @@ export default function CheckoutPage() {
   const setEstimate = useProjectStore((state) => state.setEstimate);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const lastEstimateRequestKeyRef = useRef<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [shipping, setShipping] = useState<ShippingInfo>({
-    recipientName: "\uD64D\uAE38\uB3D9",
+    recipientName: "Hong Gildong",
     recipientPhone: "010-1234-5678",
     postalCode: "06101",
-    address1: "\uC11C\uC6B8\uC2DC \uAC15\uB0A8\uAD6C \uD14C\uD5E4\uB780\uB85C 123",
-    address2: "4\uCE35 401\uD638",
-    memo: "Sandbox \uD14C\uC2A4\uD2B8 \uC8FC\uBB38",
+    address1: "123 Teheran-ro, Gangnam-gu, Seoul",
+    address2: "4F 401",
+    memo: "Sandbox test order",
   });
 
   const derivedPageCount =
@@ -36,21 +38,59 @@ export default function CheckoutPage() {
       (accumulator, section) => accumulator + section.pages.length,
       0,
     ) ?? 0;
+  const checkoutCoverImageUrl =
+    sanitizeDisplayImageUrl(project?.coverImageUrl) ?? "/demo/cover-morning.svg";
 
-  // project.id와 quantity가 바뀔 때만 견적 재계산 (setEstimate는 안정적 참조이지만 deps에서 제외)
-  useEffect(() => {
+  const estimateRequest = useMemo(() => {
     if (!project) {
+      return null;
+    }
+
+    return {
+      requestKey: JSON.stringify({
+        id: project.id,
+        title: project.title,
+        templateId: project.templateId,
+        bookSpecId: project.bookSpecId,
+        coverImageUrl: project.coverImageUrl,
+        status: project.status,
+        sweetbookBookUid: project.sweetbookBookUid,
+        quantity,
+        contentItems: project.contentItems,
+        generatedSections: project.generatedSections,
+      }),
+      payload: {
+        ...project,
+        estimate: undefined,
+        order: undefined,
+      },
+    };
+  }, [project, quantity]);
+
+  useEffect(() => {
+    if (
+      !project ||
+      !estimateRequest ||
+      !project.sweetbookBookUid ||
+      project.status !== "published"
+    ) {
       return;
     }
+
+    if (lastEstimateRequestKeyRef.current === estimateRequest.requestKey) {
+      return;
+    }
+
+    lastEstimateRequestKeyRef.current = estimateRequest.requestKey;
 
     let cancelled = false;
 
     void fetch(`/api/projects/${project.id}/estimate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project, quantity }),
+      body: JSON.stringify({ project: estimateRequest.payload, quantity }),
     })
-      .then((r) => r.json())
+      .then((response) => response.json())
       .then((payload: { estimate: Project["estimate"] }) => {
         if (!cancelled && payload.estimate) {
           setEstimate(project.id, payload.estimate);
@@ -58,9 +98,10 @@ export default function CheckoutPage() {
       })
       .catch(() => undefined);
 
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id, quantity]);
+    return () => {
+      cancelled = true;
+    };
+  }, [estimateRequest, project, quantity, setEstimate]);
 
   const handleCheckout = async () => {
     if (!project) {
@@ -70,23 +111,38 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      const publishResponse = await fetch(`/api/projects/${project.id}/publish`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ project }),
-      });
-
-      if (!publishResponse.ok) {
-        const errBody = await publishResponse.json().catch(() => null) as { message?: string } | null;
-        throw new Error(errBody?.message ?? "\uCC45 \uBC1C\uD589\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
-      }
-
-      const publishPayload = (await publishResponse.json()) as {
+      let publishPayload: {
         project: Project;
         publish: { sweetbookBookUid: string };
       };
+
+      if (project.status === "published" && project.sweetbookBookUid) {
+        publishPayload = {
+          project,
+          publish: { sweetbookBookUid: project.sweetbookBookUid },
+        };
+      } else {
+        const publishResponse = await fetch(`/api/projects/${project.id}/publish`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ project }),
+        });
+
+        if (!publishResponse.ok) {
+          const errBody = (await publishResponse.json().catch(() => null)) as
+            | { message?: string }
+            | null;
+          throw new Error(errBody?.message ?? "Failed to publish the book.");
+        }
+
+        publishPayload = (await publishResponse.json()) as {
+          project: Project;
+          publish: { sweetbookBookUid: string };
+        };
+      }
+
       upsertProject(publishPayload.project);
 
       const orderResponse = await fetch(`/api/projects/${project.id}/order`, {
@@ -102,8 +158,10 @@ export default function CheckoutPage() {
       });
 
       if (!orderResponse.ok) {
-        const errBody = await orderResponse.json().catch(() => null) as { message?: string } | null;
-        throw new Error(errBody?.message ?? "\uC8FC\uBB38 \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+        const errBody = (await orderResponse.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(errBody?.message ?? "Failed to create the order.");
       }
 
       const orderPayload = (await orderResponse.json()) as {
@@ -118,7 +176,7 @@ export default function CheckoutPage() {
       alert(
         error instanceof Error
           ? error.message
-          : "\uACB0\uC81C \uCC98\uB9AC \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.",
+          : "An unexpected error occurred during checkout.",
       );
     } finally {
       setIsSubmitting(false);
@@ -133,17 +191,14 @@ export default function CheckoutPage() {
           <Container>
             <Card className="bg-surface-container-low p-10 text-center shadow-none">
               <p className="display-copy text-4xl italic text-foreground">
-                {"Checkout Missing"}
+                Checkout Missing
               </p>
               <p className="editorial-copy mt-4 text-sm">
-                {
-                  "\uCCB4\uD06C\uC544\uC6C3 \uD560 \uD504\uB85C\uC81D\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uC0C8 \uD504\uB85C\uC81D\uD2B8\uB97C \uB9CC\uB4E4\uC5B4 \uCD9C\uD310 \uC900\uBE44\uB97C \uC774\uC5B4\uAC00 \uC8FC\uC138\uC694."
-                }
+                There is no generated project to check out. Create a new project
+                and generate the template pages first.
               </p>
               <div className="mt-8 flex justify-center">
-                <Button href="/studio/new">
-                  {"\uC0C8 \uD504\uB85C\uC81D\uD2B8"}
-                </Button>
+                <Button href="/studio/new">New Project</Button>
               </div>
             </Card>
           </Container>
@@ -158,16 +213,13 @@ export default function CheckoutPage() {
       <main className="px-6 py-12 md:px-0 md:py-16">
         <Container>
           <header className="mb-14">
-            <p className="section-label">
-              {"\uD30C\uC774\uB110 \uCCB4\uD06C\uC544\uC6C3"}
-            </p>
+            <p className="section-label">Final Checkout</p>
             <h1 className="display-copy mt-4 text-5xl font-semibold md:text-6xl">
-              {"\uCD9C\uD310 \uC900\uBE44\uB97C \uC644\uB8CC\uD558\uC138\uC694"}
+              Confirm shipping and place the order
             </h1>
             <p className="editorial-copy mt-4 max-w-2xl text-sm">
-              {
-                "\uC1A1\uC7A5 \uC815\uBCF4\uC640 \uC8FC\uBB38 \uC694\uC57D\uC744 \uD655\uC778\uD558\uACE0, SweetBook Sandbox \uAE30\uC900\uC73C\uB85C \uCC45 \uC0DD\uC131\uACFC \uC8FC\uBB38 \uD750\uB984\uC744 \uC2E4\uD589\uD569\uB2C8\uB2E4."
-              }
+              This screen runs the publish and order sequence against the
+              SweetBook Sandbox API.
             </p>
           </header>
 
@@ -175,16 +227,12 @@ export default function CheckoutPage() {
             <section className="space-y-14">
               <div>
                 <div className="mb-8 flex items-center gap-3">
-                  <span className="display-copy text-3xl italic">{"01."}</span>
-                  <h2 className="section-label text-foreground">
-                    {"\uBC30\uC1A1\uC9C0 \uC785\uB825"}
-                  </h2>
+                  <span className="display-copy text-3xl italic">01.</span>
+                  <h2 className="section-label text-foreground">Shipping</h2>
                 </div>
                 <div className="grid gap-8 md:grid-cols-2">
                   <div className="md:col-span-2">
-                    <label className="section-label block">
-                      {"\uC218\uB839\uC778 \uC131\uD568"}
-                    </label>
+                    <label className="section-label block">Recipient</label>
                     <Input
                       value={shipping.recipientName}
                       onChange={(event) =>
@@ -197,9 +245,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="section-label block">
-                      {"\uC8FC\uC18C"}
-                    </label>
+                    <label className="section-label block">Address</label>
                     <Input
                       value={shipping.address1}
                       onChange={(event) =>
@@ -212,9 +258,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="section-label block">
-                      {"\uC6B0\uD3B8\uBC88\uD638"}
-                    </label>
+                    <label className="section-label block">Postal Code</label>
                     <Input
                       value={shipping.postalCode}
                       onChange={(event) =>
@@ -227,9 +271,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="section-label block">
-                      {"\uC0C1\uC138 \uC8FC\uC18C"}
-                    </label>
+                    <label className="section-label block">Address 2</label>
                     <Input
                       value={shipping.address2}
                       onChange={(event) =>
@@ -242,9 +284,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="section-label block">
-                      {"\uC5F0\uB77D\uCC98"}
-                    </label>
+                    <label className="section-label block">Phone</label>
                     <Input
                       value={shipping.recipientPhone}
                       onChange={(event) =>
@@ -257,9 +297,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div>
-                    <label className="section-label block">
-                      {"\uC218\uB7C9"}
-                    </label>
+                    <label className="section-label block">Quantity</label>
                     <Input
                       value={String(quantity)}
                       onChange={(event) =>
@@ -271,9 +309,7 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="section-label block">
-                      {"\uBC30\uC1A1 \uBA54\uBAA8"}
-                    </label>
+                    <label className="section-label block">Memo</label>
                     <Input
                       value={shipping.memo}
                       onChange={(event) =>
@@ -290,28 +326,25 @@ export default function CheckoutPage() {
 
               <div>
                 <div className="mb-8 flex items-center gap-3">
-                  <span className="display-copy text-3xl italic">{"02."}</span>
-                  <h2 className="section-label text-foreground">
-                    {"\uACB0\uC81C \uBC0F \uC804\uC1A1 \uC900\uBE44"}
-                  </h2>
+                  <span className="display-copy text-3xl italic">02.</span>
+                  <h2 className="section-label text-foreground">Execution</h2>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="rounded-xl bg-surface-container-lowest p-6 shadow-[0_20px_40px_rgba(13,27,52,0.04)]">
                     <p className="text-sm font-semibold text-foreground">
-                      {"\uC2E0\uC6A9\uCE74\uB4DC"}
+                      Publish
                     </p>
                     <p className="editorial-copy mt-2 text-sm">
-                      {"Visa, Mastercard, Amex"}
+                      The schema-driven pages are sent directly to the SweetBook
+                      cover and contents endpoints.
                     </p>
                   </div>
                   <div className="rounded-xl bg-surface-container-low p-6">
                     <p className="text-sm font-semibold text-foreground">
-                      {"\uC0CC\uB4DC\uBC15\uC2A4 \uD14C\uC2A4\uD2B8"}
+                      Sandbox
                     </p>
                     <p className="editorial-copy mt-2 text-sm">
-                      {
-                        "\uC2E4\uC81C \uACB0\uC81C\uB294 \uBC1C\uC0DD\uD558\uC9C0 \uC54A\uACE0 \uC8FC\uBB38 \uD750\uB984\uB9CC \uAC80\uC99D\uD569\uB2C8\uB2E4."
-                      }
+                      API credentials are required to estimate, publish, and order.
                     </p>
                   </div>
                 </div>
@@ -319,12 +352,11 @@ export default function CheckoutPage() {
 
               <div className="rounded-2xl bg-[rgba(0,104,85,0.06)] p-6">
                 <p className="text-sm font-semibold text-success">
-                  {"API Readiness Verified"}
+                  Template Schema Ready
                 </p>
                 <p className="editorial-copy mt-2 text-sm">
-                  {
-                    "SweetBook API \uC5F0\uB3D9 \uACBD\uB85C\uAC00 \uC900\uBE44\uB418\uC5B4 \uC788\uC2B5\uB2C8\uB2E4. \uC124\uC815\uB41C \uD0A4\uAC00 \uC5C6\uC73C\uBA74 mock \uC751\uB2F5\uC73C\uB85C \uB3D9\uC77C \uD750\uB984\uC744 \uC7AC\uD604\uD569\uB2C8\uB2E4."
-                  }
+                  The project is using schema-generated pages and will publish those
+                  exact template instances.
                 </p>
               </div>
             </section>
@@ -332,14 +364,14 @@ export default function CheckoutPage() {
             <aside className="lg:sticky lg:top-28 lg:h-fit">
               <div className="rounded-[2rem] bg-surface-container-low p-8">
                 <h2 className="display-copy text-4xl font-semibold">
-                  {"\uC8FC\uBB38 \uC694\uC57D"}
+                  Order Summary
                 </h2>
                 <div className="mt-8 flex gap-6">
                   <div className="w-28 shrink-0 overflow-hidden rounded-sm bg-surface-container-highest">
                     <div
                       className="aspect-[3/4] bg-cover bg-center"
                       style={{
-                        backgroundImage: `url(${project.coverImageUrl ?? "/demo/cover-morning.svg"})`,
+                        backgroundImage: `url(${checkoutCoverImageUrl})`,
                       }}
                     />
                   </div>
@@ -348,28 +380,28 @@ export default function CheckoutPage() {
                       {project.title}
                     </p>
                     <p className="mt-3 text-xs uppercase tracking-[0.18em] text-secondary">
-                      {project.templateId}
+                      {`Theme family · ${project.templateId}`}
                     </p>
                     <ul className="mt-4 space-y-2 text-sm text-muted">
-                      <li>{`${derivedPageCount}\uD398\uC774\uC9C0`}</li>
+                      <li>{`${derivedPageCount} pages`}</li>
                       <li>{project.bookSpecId}</li>
-                      <li>{`${quantity}\uAD8C \uC8FC\uBB38`}</li>
+                      <li>{`${quantity} copy${quantity === 1 ? "" : "ies"}`}</li>
                     </ul>
                   </div>
                 </div>
 
                 <div className="mt-10 space-y-4 border-t border-outline pt-8 text-sm">
                   <div className="flex items-center justify-between text-muted">
-                    <span>{"\uC0C1\uD488 \uAE08\uC561"}</span>
-                    <span>{project.estimate?.subtotal.toLocaleString() ?? "-"}원</span>
+                    <span>Subtotal</span>
+                    <span>{project.estimate?.subtotal.toLocaleString() ?? "-"} KRW</span>
                   </div>
                   <div className="flex items-center justify-between text-muted">
-                    <span>{"\uBC30\uC1A1\uBE44"}</span>
-                    <span>{project.estimate?.shippingFee.toLocaleString() ?? "-"}원</span>
+                    <span>Shipping</span>
+                    <span>{project.estimate?.shippingFee.toLocaleString() ?? "-"} KRW</span>
                   </div>
                   <div className="flex items-center justify-between border-t border-outline pt-4 text-2xl font-semibold text-foreground">
-                    <span>{"\uCD1D\uC561"}</span>
-                    <span>{project.estimate?.total.toLocaleString() ?? "-"}원</span>
+                    <span>Total</span>
+                    <span>{project.estimate?.total.toLocaleString() ?? "-"} KRW</span>
                   </div>
                 </div>
 
@@ -378,7 +410,7 @@ export default function CheckoutPage() {
                   onClick={() => setIsPreviewOpen(true)}
                   className="mt-8 w-full rounded-xl border border-outline py-3 text-sm font-medium text-secondary transition hover:border-primary/40 hover:text-primary"
                 >
-                  {"📖 책 미리보기"}
+                  Open Preview
                 </button>
 
                 <Button
@@ -387,13 +419,11 @@ export default function CheckoutPage() {
                   onClick={handleCheckout}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting
-                    ? "출판 및 주문 처리 중..."
-                    : "출판하고 주문 생성"}
+                  {isSubmitting ? "Publishing and ordering..." : "Publish and Order"}
                 </Button>
 
                 <p className="mt-5 text-center text-[11px] uppercase tracking-[0.2em] text-secondary">
-                  {"Powered by SweetBook Sandbox"}
+                  Powered by SweetBook Sandbox
                 </p>
               </div>
             </aside>

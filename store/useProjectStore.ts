@@ -8,9 +8,82 @@ import type {
   Estimate,
   GeneratedSection,
   Order,
-  PageElement,
   Project,
+  TemplateParameterDefinition,
+  TemplateParameterValue,
 } from "@/types/project";
+
+const sanitizePersistentImageUrl = (value?: string) => {
+  if (!value || value.startsWith("data:")) {
+    return undefined;
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  if (value.startsWith("/demo/") || value.startsWith("/theme/")) {
+    return value;
+  }
+
+  return undefined;
+};
+
+const sanitizeParameterValue = (
+  definition: TemplateParameterDefinition | undefined,
+  value: TemplateParameterValue,
+): TemplateParameterValue => {
+  if (definition?.binding === "file") {
+    if (typeof value !== "string") {
+      return "";
+    }
+
+    return sanitizePersistentImageUrl(value) ?? "";
+  }
+
+  if (
+    definition?.binding === "rowGallery" ||
+    definition?.binding === "columnGallery"
+  ) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => sanitizePersistentImageUrl(item))
+      .filter((item): item is string => Boolean(item));
+  }
+
+  return value;
+};
+
+const sanitizeProjectForPersist = (project: Project): Project => ({
+  ...project,
+  coverImageUrl: sanitizePersistentImageUrl(project.coverImageUrl),
+  contentItems: project.contentItems.map((item) => ({
+    ...item,
+    imageUrl: sanitizePersistentImageUrl(item.imageUrl),
+  })),
+  generatedSections: project.generatedSections.map((section) => ({
+    ...section,
+    pages: section.pages.map((page) => ({
+      id: page.id,
+      sectionId: page.sectionId,
+      pageNumber: page.pageNumber,
+      kind: page.kind,
+      templateUid: page.templateUid,
+      templateName: page.templateName,
+      schema: page.schema,
+      parameters: Object.fromEntries(
+        Object.entries(page.parameters).map(([key, value]) => [
+          key,
+          sanitizeParameterValue(page.schema?.parameterDefinitions?.[key], value),
+        ]),
+      ),
+      assignedContentItemIds: page.assignedContentItemIds,
+    })),
+  })),
+});
 
 type ProjectStore = {
   projects: Record<string, Project>;
@@ -20,11 +93,12 @@ type ProjectStore = {
   getProject: (projectId: string) => Project | undefined;
   replaceSections: (projectId: string, sections: GeneratedSection[]) => void;
   reorderSections: (projectId: string, sectionOrder: string[]) => void;
-  updateElement: (
+  updatePageParameters: (
     projectId: string,
     pageId: string,
-    elementId: string,
-    updater: (element: PageElement) => PageElement,
+    updater: (
+      current: Record<string, TemplateParameterValue>,
+    ) => Record<string, TemplateParameterValue>,
   ) => void;
   replaceContentItemImage: (
     projectId: string,
@@ -81,9 +155,21 @@ export const useProjectStore = create<ProjectStore>()(
             const mapped = new Map(
               project.generatedSections.map((section) => [section.id, section]),
             );
+            let nextPageNumber = 1;
             const reordered = sectionOrder
               .map((sectionId) => mapped.get(sectionId))
-              .filter((section): section is GeneratedSection => Boolean(section));
+              .filter((section): section is GeneratedSection => Boolean(section))
+              .map((section) => ({
+                ...section,
+                pages: section.pages.map((page) => {
+                  const renumberedPage = {
+                    ...page,
+                    pageNumber: nextPageNumber,
+                  };
+                  nextPageNumber += 1;
+                  return renumberedPage;
+                }),
+              }));
 
             return {
               ...project,
@@ -92,7 +178,7 @@ export const useProjectStore = create<ProjectStore>()(
             };
           }),
         })),
-      updateElement: (projectId, pageId, elementId, updater) =>
+      updatePageParameters: (projectId, pageId, updater) =>
         set((state) => ({
           projects: updateProjectRecord(state.projects, projectId, (project) => ({
             ...project,
@@ -102,9 +188,7 @@ export const useProjectStore = create<ProjectStore>()(
                 page.id === pageId
                   ? {
                       ...page,
-                      elements: page.elements.map((element) =>
-                        element.id === elementId ? updater(element) : element,
-                      ),
+                      parameters: updater(page.parameters),
                     }
                   : page,
               ),
@@ -128,20 +212,6 @@ export const useProjectStore = create<ProjectStore>()(
                   }
                 : item,
             ),
-            generatedSections: project.generatedSections.map((section) => ({
-              ...section,
-              pages: section.pages.map((page) => ({
-                ...page,
-                elements: page.elements.map((element) =>
-                  element.type === "image" && element.contentItemId === contentItemId
-                    ? {
-                        ...element,
-                        imageUrl,
-                      }
-                    : element,
-                ),
-              })),
-            })),
             updatedAt: new Date().toISOString(),
           })),
         })),
@@ -166,6 +236,41 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: "sweetbook-project-store",
+      version: 5,
+      partialize: (state) => ({
+        projects: Object.fromEntries(
+          Object.entries(state.projects).map(([projectId, project]) => [
+            projectId,
+            sanitizeProjectForPersist(project),
+          ]),
+        ),
+        currentProjectId: state.currentProjectId,
+      }),
+      migrate: (persistedState) => {
+        const state = persistedState as
+          | {
+              projects?: Record<string, Project>;
+              currentProjectId?: string | null;
+            }
+          | undefined;
+
+        if (!state?.projects) {
+          return {
+            projects: {},
+            currentProjectId: null,
+          };
+        }
+
+        return {
+          projects: Object.fromEntries(
+            Object.entries(state.projects).map(([projectId, project]) => [
+              projectId,
+              sanitizeProjectForPersist(project),
+            ]),
+          ),
+          currentProjectId: state.currentProjectId ?? null,
+        };
+      },
     },
   ),
 );

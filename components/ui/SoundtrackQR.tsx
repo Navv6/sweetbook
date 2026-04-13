@@ -23,7 +23,7 @@ export function SoundtrackQR({
         <QRCodeSVG value={url} size={size} />
       </div>
       <p className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>
-        {"이 책의 사운드트랙"}
+        Book soundtrack
       </p>
       <p
         className="max-w-[160px] break-all text-center text-[10px] leading-relaxed"
@@ -31,10 +31,7 @@ export function SoundtrackQR({
       >
         {url}
       </p>
-      <p
-        className="text-[10px]"
-        style={{ color: "rgba(255,255,255,0.3)" }}
-      >
+      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>
         {projectTitle}
       </p>
     </div>

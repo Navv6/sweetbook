@@ -1,15 +1,11 @@
-import type { Crop } from "@/types/project";
-
-export type SelectedElementRef = {
+export type SelectedFieldRef = {
   sectionId: string;
   pageId: string;
-  elementId: string;
+  fieldKey: string;
 };
 
 export type EditorState = {
   selectedPageId: string | null;
-  selectedElement: SelectedElementRef | null;
-  cropDraft: Crop;
-  textDraft: string;
+  selectedField: SelectedFieldRef | null;
   sectionOrder: string[];
 };

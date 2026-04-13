@@ -9,7 +9,10 @@ export async function POST(
   await params; // consume params (id available if needed for logging)
 
   if (!process.env.REPLICATE_API_TOKEN) {
-    return NextResponse.json({ audioUrl: null, isMock: true }, { status: 200 });
+    return NextResponse.json(
+      { message: "Soundtrack generation is not configured yet." },
+      { status: 503 },
+    );
   }
 
   try {
@@ -43,9 +46,12 @@ export async function POST(
           ? (output[0] as string)
           : null;
 
-    return NextResponse.json({ audioUrl, isMock: false }, { status: 200 });
+    return NextResponse.json({ audioUrl }, { status: 200 });
   } catch (error) {
     console.error("musicgen error:", error);
-    return NextResponse.json({ audioUrl: null, isMock: true }, { status: 200 });
+    return NextResponse.json(
+      { message: "Failed to generate the soundtrack." },
+      { status: 500 },
+    );
   }
 }

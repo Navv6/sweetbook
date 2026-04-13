@@ -1,5 +1,8 @@
 import type { BookSpecOption } from "@/types/project";
 
+const formatBookSpecMeta = (bookSpec: BookSpecOption) =>
+  `${bookSpec.width} x ${bookSpec.height} mm · ${bookSpec.minPages}-${bookSpec.maxPages}p · +${bookSpec.pageStep}p`;
+
 export function BookSpecSelector({
   bookSpecs,
   selectedBookSpecId,
@@ -31,11 +34,11 @@ export function BookSpecSelector({
                   {bookSpec.name}
                 </p>
                 <p className="editorial-copy mt-2 text-sm">
-                  {bookSpec.description}
+                  {formatBookSpecMeta(bookSpec)}
                 </p>
               </div>
               <div className="rounded-full bg-surface-container-lowest px-3 py-1 text-xs font-semibold text-secondary">
-                {bookSpec.width}:{bookSpec.height}
+                {`${bookSpec.width}×${bookSpec.height}`}
               </div>
             </div>
           </button>

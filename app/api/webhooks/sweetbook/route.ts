@@ -1,7 +1,16 @@
 import { createHmac } from "crypto";
 import { NextResponse } from "next/server";
 
-// ─── 웹훅 서명 검증 ──────────────────────────────────────────────────────────
+import {
+  applyWebhookEventToProject,
+  EVENT_LABELS,
+  type SweetBookWebhookEvent,
+  type SweetBookWebhookPayload,
+} from "@/lib/webhook";
+import {
+  findProjectBySweetBookIds,
+  saveProject,
+} from "@/lib/project-repository";
 
 const verifySignature = (
   rawBody: string,
@@ -10,55 +19,20 @@ const verifySignature = (
   secret: string,
 ): boolean => {
   const payload = `${timestamp}.${rawBody}`;
-  const expected = "sha256=" + createHmac("sha256", secret).update(payload).digest("hex");
-  // timing-safe 비교
-  if (expected.length !== signature.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) {
-    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  const expected =
+    "sha256=" + createHmac("sha256", secret).update(payload).digest("hex");
+
+  if (expected.length !== signature.length) {
+    return false;
   }
+
+  let diff = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    diff |= expected.charCodeAt(index) ^ signature.charCodeAt(index);
+  }
+
   return diff === 0;
 };
-
-// ─── 웹훅 이벤트 타입 ────────────────────────────────────────────────────────
-
-type WebhookEvent =
-  | "order.created"
-  | "order.cancelled"
-  | "order.restored"
-  | "production.confirmed"
-  | "production.started"
-  | "production.completed"
-  | "shipping.departed"
-  | "shipping.delivered";
-
-interface WebhookPayload {
-  event: WebhookEvent;
-  deliveryId: string;
-  timestamp: number;
-  data: {
-    orderUid?: string;
-    bookUid?: string;
-    status?: string;
-    trackingNumber?: string;
-    [key: string]: unknown;
-  };
-}
-
-// ─── 이벤트별 한국어 상태 메시지 ─────────────────────────────────────────────
-
-const EVENT_LABELS: Record<WebhookEvent, string> = {
-  "order.created": "주문 결제 완료",
-  "order.cancelled": "주문 취소",
-  "order.restored": "주문 복원",
-  "production.confirmed": "제작 확정",
-  "production.started": "제작 시작",
-  "production.completed": "제작 완료",
-  "shipping.departed": "배송 출발",
-  "shipping.delivered": "배송 완료",
-};
-
-// ─── POST 핸들러 ─────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -70,75 +44,82 @@ export async function POST(request: Request) {
 
   console.log(`[webhook] ${event} delivery=${deliveryId} ts=${timestamp}`);
 
-  // 서명 검증 (WEBHOOK_SECRET 환경변수가 있을 때만)
-  // .trim()으로 echo 저장 시 붙는 개행문자 제거
   const secret = process.env.SWEETBOOK_WEBHOOK_SECRET?.trim();
   if (secret) {
     const valid = verifySignature(rawBody, timestamp, signature, secret);
+
     if (!valid) {
-      // 디버그용: 기대값 앞 20자만 로그 (보안상 전체 노출 금지)
-      const expected = "sha256=" + createHmac("sha256", secret)
-        .update(`${timestamp}.${rawBody}`)
-        .digest("hex");
-      console.warn("[webhook] 서명 불일치", {
+      const expected =
+        "sha256=" +
+        createHmac("sha256", secret)
+          .update(`${timestamp}.${rawBody}`)
+          .digest("hex");
+
+      console.warn("[webhook] signature mismatch", {
         event,
         deliveryId,
         receivedPrefix: signature.slice(0, 20),
         expectedPrefix: expected.slice(0, 20),
       });
+
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   }
 
-  let payload: WebhookPayload;
+  let payload: SweetBookWebhookPayload;
   try {
-    payload = JSON.parse(rawBody) as WebhookPayload;
+    payload = JSON.parse(rawBody) as SweetBookWebhookPayload;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const label = EVENT_LABELS[payload.event as WebhookEvent] ?? payload.event;
+  const label = EVENT_LABELS[payload.event as SweetBookWebhookEvent] ?? payload.event;
   const { orderUid, bookUid, trackingNumber } = payload.data;
 
-  console.log(`[webhook] ✅ ${label}`, {
+  console.log(`[webhook] ${label}`, {
     orderUid,
     bookUid,
     trackingNumber,
     raw: payload.data,
   });
 
-  // 이벤트별 처리
-  switch (payload.event) {
-    case "order.created":
-      // TODO: DB에 주문 상태 업데이트, 고객 이메일 발송 등
-      console.log(`[webhook] 주문 생성됨: ${orderUid}`);
-      break;
+  try {
+    const matchedProject = await findProjectBySweetBookIds({ orderUid, bookUid });
 
-    case "production.confirmed":
-      console.log(`[webhook] 제작 확정: ${orderUid}`);
-      break;
-
-    case "production.completed":
-      console.log(`[webhook] 제작 완료: ${bookUid}`);
-      break;
-
-    case "shipping.departed":
-      console.log(`[webhook] 배송 시작: ${orderUid} 운송장=${trackingNumber ?? "미정"}`);
-      break;
-
-    case "shipping.delivered":
-      console.log(`[webhook] 배송 완료: ${orderUid}`);
-      break;
-
-    case "order.cancelled":
-      console.log(`[webhook] 주문 취소: ${orderUid}`);
-      break;
-
-    default:
-      console.log(`[webhook] 처리되지 않은 이벤트: ${payload.event}`);
+    if (matchedProject) {
+      const syncedProject = applyWebhookEventToProject(matchedProject, payload);
+      await saveProject(syncedProject);
+      console.log(`[webhook] synced project ${syncedProject.id}`);
+    }
+  } catch (error) {
+    console.error("[webhook] failed to sync project", error);
   }
 
-  // SweetBook API는 2xx 응답을 받아야 재전송하지 않음
+  switch (payload.event) {
+    case "order.created":
+      console.log(`[webhook] order created: ${orderUid}`);
+      break;
+    case "production.confirmed":
+      console.log(`[webhook] production confirmed: ${orderUid}`);
+      break;
+    case "production.completed":
+      console.log(`[webhook] production completed: ${bookUid}`);
+      break;
+    case "shipping.departed":
+      console.log(
+        `[webhook] shipping departed: ${orderUid} tracking=${trackingNumber ?? "pending"}`,
+      );
+      break;
+    case "shipping.delivered":
+      console.log(`[webhook] shipping delivered: ${orderUid}`);
+      break;
+    case "order.cancelled":
+      console.log(`[webhook] order cancelled: ${orderUid}`);
+      break;
+    default:
+      console.log(`[webhook] unhandled event: ${payload.event}`);
+  }
+
   return NextResponse.json(
     { received: true, event: payload.event, label },
     { status: 200 },

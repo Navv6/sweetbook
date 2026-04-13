@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Container } from "@/components/layout/Container";
 import { Header } from "@/components/layout/Header";
@@ -11,13 +11,15 @@ import { TemplateSelector } from "@/components/studio/TemplateSelector";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import {
-  createDemoContentItems,
-  mockBookSpecs,
-  mockTemplates,
-} from "@/lib/mock";
+import { curatedThemeFamilies } from "@/lib/curated-theme-families";
 import { useProjectStore } from "@/store/useProjectStore";
-import type { ContentItem, Project } from "@/types/project";
+import type {
+  BookSpecOption,
+  CatalogSummary,
+  ContentItem,
+  Project,
+  TemplateOption,
+} from "@/types/project";
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -30,25 +32,147 @@ const readFileAsDataUrl = (file: File) =>
 export default function NewProjectPage() {
   const router = useRouter();
   const upsertProject = useProjectStore((state) => state.upsertProject);
-  const [title, setTitle] = useState("\uC6B0\uB9AC\uC758 \uCCAB \uBC88\uC9F8 \uC544\uCE74\uC774\uBE0C");
-  const [selectedTemplateId, setSelectedTemplateId] = useState(
-    mockTemplates[0].id,
-  );
-  const [selectedBookSpecId, setSelectedBookSpecId] = useState(
-    mockBookSpecs[0].id,
-  );
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [bookSpecs, setBookSpecs] = useState<BookSpecOption[]>([]);
+  const [title, setTitle] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedBookSpecId, setSelectedBookSpecId] = useState<string | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | undefined>();
-  const [contentItems, setContentItems] = useState<ContentItem[]>(
-    createDemoContentItems(),
+  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
+  const [templateSummary, setTemplateSummary] = useState<CatalogSummary | null>(
+    null,
   );
+  const [catalogNotice, setCatalogNotice] = useState<string | null>(null);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const liveTemplatesById = useMemo(
+    () => new Map(templates.map((template) => [template.id, template])),
+    [templates],
+  );
+  const galleryTemplates = useMemo(
+    () =>
+      templates.map((liveTemplate) => {
+        const curatedTemplate = liveTemplatesById.has(liveTemplate.id)
+          ? curatedThemeFamilies.find((template) => template.id === liveTemplate.id)
+          : undefined;
+
+        if (!curatedTemplate) {
+          return liveTemplate;
+        }
+
+        return {
+          ...liveTemplate,
+          ...curatedTemplate,
+          bookSpecIds: liveTemplate.bookSpecIds,
+          templateKinds: liveTemplate.templateKinds,
+          templateCount: liveTemplate.templateCount,
+          variants: liveTemplate.variants,
+          thumbnailUrl: curatedTemplate.thumbnailUrl ?? liveTemplate.thumbnailUrl,
+        };
+      }),
+    [liveTemplatesById, templates],
+  );
+  const availableTemplateIds = useMemo(
+    () =>
+      new Set(
+        templates
+          .filter((template) =>
+            selectedBookSpecId ? template.bookSpecIds.includes(selectedBookSpecId) : true,
+          )
+          .map((template) => template.id),
+      ),
+    [selectedBookSpecId, templates],
+  );
   const selectedTemplate =
-    mockTemplates.find((template) => template.id === selectedTemplateId) ??
-    mockTemplates[0];
+    galleryTemplates.find((template) => template.id === selectedTemplateId) ??
+    galleryTemplates[0] ??
+    null;
   const selectedBookSpec =
-    mockBookSpecs.find((bookSpec) => bookSpec.id === selectedBookSpecId) ??
-    mockBookSpecs[0];
+    bookSpecs.find((bookSpec) => bookSpec.id === selectedBookSpecId) ??
+    bookSpecs[0] ??
+    null;
+  const hasLiveCatalog = templates.length > 0;
+  const selectedTemplateIsAvailable =
+    !selectedTemplate ||
+    !selectedBookSpecId ||
+    !hasLiveCatalog ||
+    availableTemplateIds.has(selectedTemplate.id);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch("/api/catalog", { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to load the catalog.");
+        }
+
+        return response.json() as Promise<{
+          templates: TemplateOption[];
+          bookSpecs: BookSpecOption[];
+          templateSummary: CatalogSummary;
+          message: string;
+        }>;
+      })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (payload.templates.length > 0) {
+          setTemplates(payload.templates);
+        }
+
+        if (payload.bookSpecs.length > 0) {
+          setBookSpecs(payload.bookSpecs);
+        }
+
+        setTemplateSummary(payload.templateSummary);
+        setCatalogNotice(payload.message);
+        setIsCatalogLoading(false);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setTemplates([]);
+          setBookSpecs([]);
+          setCatalogNotice(
+            error instanceof Error
+              ? error.message
+              : "Failed to load the SweetBook catalog.",
+          );
+          setIsCatalogLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (galleryTemplates.length === 0) {
+      return;
+    }
+
+    setSelectedTemplateId((current) =>
+      current && galleryTemplates.some((template) => template.id === current)
+        ? current
+        : galleryTemplates[0].id,
+    );
+  }, [galleryTemplates]);
+
+  useEffect(() => {
+    if (bookSpecs.length === 0) {
+      return;
+    }
+
+    setSelectedBookSpecId((current) =>
+      current && bookSpecs.some((bookSpec) => bookSpec.id === current)
+        ? current
+        : bookSpecs[0].id,
+    );
+  }, [bookSpecs]);
 
   const handleCoverUpload = async (file: File) => {
     const imageUrl = await readFileAsDataUrl(file);
@@ -60,9 +184,7 @@ export default function NewProjectPage() {
       Array.from(files).map(async (file, index) => ({
         id: crypto.randomUUID(),
         kind: "image" as const,
-        title:
-          file.name.replace(/\.[^.]+$/, "") ||
-          `\uC5C5\uB85C\uB4DC \uC774\uBBF8\uC9C0 ${index + 1}`,
+        title: file.name.replace(/\.[^.]+$/, "") || `Upload ${index + 1}`,
         imageUrl: await readFileAsDataUrl(file),
         fileName: file.name,
         createdAt: new Date().toISOString(),
@@ -73,6 +195,10 @@ export default function NewProjectPage() {
   };
 
   const handleSubmit = async () => {
+    if (!selectedTemplate || !selectedBookSpec) {
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
@@ -83,17 +209,15 @@ export default function NewProjectPage() {
         },
         body: JSON.stringify({
           title,
-          templateId: selectedTemplateId,
-          bookSpecId: selectedBookSpecId,
+          templateId: selectedTemplate.id,
+          bookSpecId: selectedBookSpec.id,
           coverImageUrl,
           contentItems,
         }),
       });
 
       if (!createResponse.ok) {
-        throw new Error(
-          "\uD504\uB85C\uC81D\uD2B8 \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.",
-        );
+        throw new Error("Failed to create the project.");
       }
 
       const createdProject = (await createResponse.json()) as { project: Project };
@@ -112,9 +236,7 @@ export default function NewProjectPage() {
       );
 
       if (!generateResponse.ok) {
-        throw new Error(
-          "\uB808\uC774\uC544\uC6C3 \uC0DD\uC131\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.",
-        );
+        throw new Error("Failed to generate template pages.");
       }
 
       const generatedProject = (await generateResponse.json()) as {
@@ -126,7 +248,7 @@ export default function NewProjectPage() {
       alert(
         error instanceof Error
           ? error.message
-          : "\uD504\uB85C\uC81D\uD2B8 \uC0DD\uC131 \uC911 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.",
+          : "An unexpected error occurred while creating the project.",
       );
     } finally {
       setIsGenerating(false);
@@ -139,27 +261,23 @@ export default function NewProjectPage() {
       <main className="px-6 py-10 md:px-0 md:py-14">
         <Container>
           <div className="mb-10 max-w-3xl">
-            <p className="section-label">
-              {"\uD050\uB808\uC774\uC158 \uC2A4\uD29C\uB514\uC624"}
-            </p>
+            <p className="section-label">Curation Studio</p>
             <h1 className="display-copy mt-4 text-4xl font-semibold md:text-6xl">
-              {"\uD3EC\uD1A0\uBD81 \uCD08\uC548\uC744 \uC124\uACC4\uD558\uB294 \uCCAB \uB2E8\uACC4"}
+              Pick a family, then edit real template schemas
             </h1>
             <p className="editorial-copy mt-4 max-w-2xl text-sm">
-              {
-                "\uC81C\uBAA9, \uCEE4\uBC84, \uBCF8\uBB38 \uC774\uBBF8\uC9C0, \uD310\uD615, \uD15C\uD50C\uB9BF\uC744 \uBA3C\uC800 \uC815\uB9AC\uD55C \uB4A4 AI \uCD08\uC548\uC744 \uC0DD\uC131\uD569\uB2C8\uB2E4. \uC774\uBBF8\uC9C0\uB97C \uC5C5\uB85C\uB4DC\uD558\uC9C0 \uC54A\uC544\uB3C4 \uB370\uBAA8 \uCEE8\uD150\uCE20\uB85C \uBC14\uB85C \uD750\uB984\uC744 \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."
-              }
+              Select the theme family, upload a cover image and a few content
+              images, then generate the exact SweetBook template pages for the
+              chosen family and book spec.
             </p>
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-[0.95fr_0.85fr]">
+          <div className="grid gap-8 lg:grid-cols-[0.92fr_1.08fr]">
             <section className="space-y-6">
               <Card className="bg-surface-container-low p-8 shadow-none">
                 <div className="space-y-5">
                   <div>
-                    <label className="section-label block">
-                      {"\uD504\uB85C\uC81D\uD2B8 \uC81C\uBAA9"}
-                    </label>
+                    <label className="section-label block">Project Title</label>
                     <Input
                       value={title}
                       onChange={(event) => setTitle(event.target.value)}
@@ -169,17 +287,13 @@ export default function NewProjectPage() {
 
                   <div className="grid gap-5 md:grid-cols-2">
                     <div className="rounded-2xl bg-surface-container-lowest p-5">
-                      <p className="section-label">
-                        {"\uCEE4\uBC84 \uC774\uBBF8\uC9C0"}
-                      </p>
+                      <p className="section-label">Cover Image</p>
                       <label className="mt-4 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl bg-surface-container-low px-4 text-center">
                         <span className="display-copy text-3xl italic text-foreground">
-                          {"Cover"}
+                          Cover
                         </span>
                         <span className="editorial-copy mt-3 text-sm">
-                          {
-                            "\uD074\uB9AD\uD574 \uD45C\uC9C0 \uC0AC\uC9C4\uC744 \uC120\uD0DD\uD558\uC138\uC694."
-                          }
+                          Upload the image used for the cover slot.
                         </span>
                         <input
                           type="file"
@@ -197,25 +311,14 @@ export default function NewProjectPage() {
 
                     <div className="rounded-2xl bg-surface-container-lowest p-5">
                       <div className="flex items-center justify-between">
-                        <p className="section-label">
-                          {"\uBCF8\uBB38 \uC774\uBBF8\uC9C0"}
-                        </p>
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-primary"
-                          onClick={() => setContentItems(createDemoContentItems())}
-                        >
-                          {"\uB370\uBAA8 \uBD88\uB7EC\uC624\uAE30"}
-                        </button>
+                        <p className="section-label">Content Images</p>
                       </div>
                       <label className="mt-4 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl bg-surface-container-low px-4 text-center">
                         <span className="display-copy text-3xl italic text-foreground">
-                          {"Upload"}
+                          Upload
                         </span>
                         <span className="editorial-copy mt-3 text-sm">
-                          {
-                            "\uC5EC\uB7EC \uC7A5\uC758 \uC7A5\uBA74\uC744 \uD55C \uBC88\uC5D0 \uC120\uD0DD\uD574 \uD750\uB984\uC744 \uB9CC\uB4DC\uC138\uC694."
-                          }
+                          Upload several photos to fill the gallery and content slots.
                         </span>
                         <input
                           type="file"
@@ -234,7 +337,7 @@ export default function NewProjectPage() {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {contentItems.slice(0, 6).map((item) => (
+                  {contentItems.slice(0, 6).map((item) => (
                       <div
                         key={item.id}
                         className="rounded-xl bg-surface-container-lowest p-3"
@@ -253,28 +356,64 @@ export default function NewProjectPage() {
               </Card>
 
               <Card className="bg-surface-container-low p-8 shadow-none">
-                <p className="section-label">
-                  {"\uD15C\uD50C\uB9BF \uC120\uD0DD"}
-                </p>
+                <p className="section-label">Book Spec</p>
                 <div className="mt-5">
-                  <TemplateSelector
-                    templates={mockTemplates}
-                    selectedTemplateId={selectedTemplateId}
-                    onSelect={setSelectedTemplateId}
-                  />
+                  {isCatalogLoading ? (
+                    <div className="rounded-2xl bg-surface-container-lowest px-5 py-6 text-sm text-secondary">
+                      Loading book specs...
+                    </div>
+                  ) : (
+                    <BookSpecSelector
+                      bookSpecs={bookSpecs}
+                      selectedBookSpecId={selectedBookSpecId ?? ""}
+                      onSelect={setSelectedBookSpecId}
+                    />
+                  )}
                 </div>
               </Card>
 
               <Card className="bg-surface-container-low p-8 shadow-none">
-                <p className="section-label">
-                  {"\uD310\uD615 \uC120\uD0DD"}
-                </p>
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <p className="section-label">Theme Family</p>
+                    {catalogNotice && (
+                      <p className="editorial-copy mt-3 text-xs text-secondary">
+                        {catalogNotice}
+                      </p>
+                    )}
+                  </div>
+                  {templateSummary && (
+                    <div className="rounded-2xl bg-surface-container-lowest px-4 py-3 text-right">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
+                        Catalog
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {`${templateSummary.familyCount} families / ${templateSummary.totalTemplates} templates`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <div className="mt-5">
-                  <BookSpecSelector
-                    bookSpecs={mockBookSpecs}
-                    selectedBookSpecId={selectedBookSpecId}
-                    onSelect={setSelectedBookSpecId}
-                  />
+                  {galleryTemplates.length > 0 ? (
+                    <TemplateSelector
+                      templates={galleryTemplates}
+                      selectedTemplateId={selectedTemplateId ?? ""}
+                      onSelect={setSelectedTemplateId}
+                    />
+                  ) : (
+                    <div className="rounded-2xl bg-surface-container-lowest px-5 py-6 text-sm text-secondary">
+                      No SweetBook theme families are available.
+                    </div>
+                  )}
+                  {!isCatalogLoading &&
+                    selectedBookSpecId &&
+                    selectedTemplate &&
+                    !selectedTemplateIsAvailable && (
+                      <div className="mt-4 rounded-2xl bg-surface-container-lowest px-5 py-4 text-sm text-secondary">
+                        This family is not available for the selected book spec in the current catalog.
+                      </div>
+                    )}
                 </div>
               </Card>
 
@@ -282,23 +421,37 @@ export default function NewProjectPage() {
                 <Button
                   type="button"
                   onClick={handleSubmit}
-                  disabled={isGenerating}
+                  disabled={
+                    isCatalogLoading ||
+                    isGenerating ||
+                    !selectedTemplate ||
+                    !selectedBookSpec ||
+                    !selectedTemplateIsAvailable
+                  }
                   className="min-w-52"
                 >
-                  {isGenerating
-                    ? "\uCD08\uC548 \uC0DD\uC131 \uC911..."
-                    : "\uC5D0\uB514\uD1A0\uB9AC\uC5BC \uCD08\uC548 \uC0DD\uC131"}
+                  {isGenerating ? "Generating..." : "Generate Schema Pages"}
                 </Button>
               </div>
             </section>
 
-            <PreviewPanel
-              title={title}
-              template={selectedTemplate}
-              bookSpec={selectedBookSpec}
-              coverImageUrl={coverImageUrl}
-              imageCount={contentItems.length}
-            />
+            {selectedTemplate && selectedBookSpec ? (
+              <PreviewPanel
+                title={title}
+                template={selectedTemplate}
+                bookSpec={selectedBookSpec}
+                coverImageUrl={coverImageUrl}
+                imageCount={contentItems.length}
+              />
+            ) : (
+              <aside className="glass-panel sticky top-28 rounded-[2rem] p-6">
+                <div className="rounded-2xl bg-surface-container-low p-8 text-sm text-secondary">
+                  {isCatalogLoading
+                    ? "Loading the SweetBook catalog..."
+                    : "Select a book spec and theme family to preview the generated book."}
+                </div>
+              </aside>
+            )}
           </div>
         </Container>
       </main>

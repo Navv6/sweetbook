@@ -14,6 +14,7 @@ export function SectionList({
   return (
     <div className="space-y-4">
       {sections.map((section, index) => {
+        const page = section.pages[0];
         const isSelected = selectedSectionId === section.id;
 
         return (
@@ -30,7 +31,7 @@ export function SectionList({
               onClick={() => onSelect(section.id)}
               className="w-full text-left"
             >
-              <p className="section-label">{`Section ${index + 1}`}</p>
+              <p className="section-label">{`Page ${page?.pageNumber ?? index + 1}`}</p>
               <p className="mt-3 text-base font-semibold text-foreground">
                 {section.title}
               </p>
@@ -42,14 +43,14 @@ export function SectionList({
                 className="rounded-md bg-surface-container-low px-3 py-2 text-xs font-semibold text-secondary transition hover:bg-surface-container-high"
                 onClick={() => onMove(section.id, "up")}
               >
-                {"\uC704\uB85C"}
+                Up
               </button>
               <button
                 type="button"
                 className="rounded-md bg-surface-container-low px-3 py-2 text-xs font-semibold text-secondary transition hover:bg-surface-container-high"
                 onClick={() => onMove(section.id, "down")}
               >
-                {"\uC544\uB798\uB85C"}
+                Down
               </button>
             </div>
           </div>

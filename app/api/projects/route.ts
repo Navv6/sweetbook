@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message:
-          error instanceof Error ? error.message : "프로젝트 생성에 실패했습니다.",
+          error instanceof Error ? error.message : "Failed to create the project.",
       },
       { status: 500 },
     );
