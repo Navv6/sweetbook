@@ -35,7 +35,7 @@ export default function OrderDetailPage() {
           upsertProject(payload.project);
         }
       } catch {
-        // local-first fallback
+        // 로컬 데이터 우선 사용
       } finally {
         if (!cancelled) {
           setIsHydrating(false);
@@ -62,10 +62,10 @@ export default function OrderDetailPage() {
           <Container>
             <Card className="bg-surface-container-low p-10 text-center shadow-none">
               <p className="display-copy text-4xl italic text-foreground">
-                Order Syncing
+                주문 동기화 중
               </p>
               <p className="editorial-copy mt-4 text-sm">
-                Syncing the latest order data and webhook timeline from the server.
+                서버에서 최신 주문 데이터와 웹훅 타임라인을 가져오고 있습니다.
               </p>
             </Card>
           </Container>
@@ -82,16 +82,15 @@ export default function OrderDetailPage() {
           <Container>
             <Card className="bg-surface-container-low p-10 text-center shadow-none">
               <p className="display-copy text-4xl italic text-foreground">
-                Order Missing
+                주문 없음
               </p>
               <p className="editorial-copy mt-4 text-sm">
-                No order record is available. Start a new project and run the flow
-                again from the studio.
+                주문 기록이 없습니다. 새 프로젝트를 시작하고 스튜디오에서 처음부터 진행하세요.
               </p>
               <div className="mt-8 flex justify-center gap-3">
-                <Button href="/studio/new">New Project</Button>
+                <Button href="/studio/new">새 프로젝트</Button>
                 <Button href="/" variant="secondary">
-                  Home
+                  홈
                 </Button>
               </div>
             </Card>
@@ -109,32 +108,31 @@ export default function OrderDetailPage() {
       <main className="px-6 py-12 md:px-0 md:py-16">
         <Container>
           <header className="mb-14">
-            <p className="section-label">Order Detail</p>
+            <p className="section-label">주문 상세</p>
             <h1 className="display-copy mt-4 text-5xl font-semibold md:text-6xl">
-              The order has been created
+              주문이 생성되었습니다
             </h1>
             <p className="editorial-copy mt-4 max-w-2xl text-sm">
-              This page summarizes the SweetBook Sandbox order response and keeps
-              listening for webhook-driven status updates.
+              SweetBook Sandbox 주문 응답을 요약하며, 웹훅 기반 상태 업데이트를 실시간으로 반영합니다.
             </p>
           </header>
 
           <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr]">
             <section className="space-y-6">
               <Card className="bg-surface-container-low p-8 shadow-none">
-                <p className="section-label">Order Status</p>
+                <p className="section-label">주문 상태</p>
                 <p className="display-copy mt-4 text-5xl italic text-foreground">
                   {order.orderStatusDisplay}
                 </p>
                 <div className="mt-8 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-xl bg-surface-container-lowest p-5">
-                    <p className="section-label">Order UID</p>
+                    <p className="section-label">주문 UID</p>
                     <p className="mt-3 break-all text-sm font-semibold text-foreground">
                       {order.orderUid}
                     </p>
                   </div>
                   <div className="rounded-xl bg-surface-container-lowest p-5">
-                    <p className="section-label">Book UID</p>
+                    <p className="section-label">도서 UID</p>
                     <p className="mt-3 break-all text-sm font-semibold text-foreground">
                       {project.sweetbookBookUid ?? "-"}
                     </p>
@@ -143,22 +141,22 @@ export default function OrderDetailPage() {
               </Card>
 
               <Card className="bg-surface-container-low p-8 shadow-none">
-                <p className="section-label">Shipping</p>
+                <p className="section-label">배송</p>
                 <div className="mt-6 space-y-4 text-sm">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted">Recipient</span>
+                    <span className="text-muted">수령인</span>
                     <span className="font-semibold text-foreground">
                       {order.recipientName}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted">Phone</span>
+                    <span className="text-muted">연락처</span>
                     <span className="font-semibold text-foreground">
                       {order.recipientPhone}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-4">
-                    <span className="text-muted">Address</span>
+                    <span className="text-muted">주소</span>
                     <span className="max-w-sm text-right font-semibold text-foreground">
                       {order.postalCode} {order.address1} {order.address2}
                     </span>
@@ -169,7 +167,7 @@ export default function OrderDetailPage() {
 
             <section className="space-y-6">
               <Card className="bg-surface-container-low p-8 shadow-none">
-                <p className="section-label">Items</p>
+                <p className="section-label">항목</p>
                 <div className="mt-6 space-y-4">
                   {order.items.map((item) => (
                     <div
@@ -182,7 +180,7 @@ export default function OrderDetailPage() {
                             {item.bookTitle}
                           </p>
                           <p className="mt-3 text-xs uppercase tracking-[0.18em] text-secondary">
-                            {`Qty ${item.quantity} · ${item.itemStatusDisplay}`}
+                            {`수량 ${item.quantity} · ${item.itemStatusDisplay}`}
                           </p>
                         </div>
                         <p className="text-lg font-semibold text-foreground">
@@ -196,7 +194,7 @@ export default function OrderDetailPage() {
 
               <Card className="bg-surface-container-low p-8 shadow-none">
                 <div className="flex items-center justify-between">
-                  <p className="section-label">Total</p>
+                  <p className="section-label">합계</p>
                   <p className="text-3xl font-semibold text-foreground">
                     {order.totalAmount.toLocaleString()} KRW
                   </p>
@@ -205,9 +203,9 @@ export default function OrderDetailPage() {
 
               <Card className="bg-surface-container-low p-8 shadow-none">
                 <div className="flex items-center justify-between gap-4">
-                  <p className="section-label">Webhook Timeline</p>
+                  <p className="section-label">웹훅 타임라인</p>
                   <p className="text-xs uppercase tracking-[0.18em] text-secondary">
-                    Auto refresh every 15s
+                    15초마다 자동 갱신
                   </p>
                 </div>
                 <div className="mt-6 space-y-4">
@@ -235,10 +233,10 @@ export default function OrderDetailPage() {
                         </div>
                         {(event.orderUid || event.bookUid || event.trackingNumber) && (
                           <div className="mt-3 space-y-1 text-xs text-muted">
-                            {event.orderUid && <p>{`Order: ${event.orderUid}`}</p>}
-                            {event.bookUid && <p>{`Book: ${event.bookUid}`}</p>}
+                            {event.orderUid && <p>{`주문: ${event.orderUid}`}</p>}
+                            {event.bookUid && <p>{`도서: ${event.bookUid}`}</p>}
                             {event.trackingNumber && (
-                              <p>{`Tracking: ${event.trackingNumber}`}</p>
+                              <p>{`운송장: ${event.trackingNumber}`}</p>
                             )}
                           </div>
                         )}
@@ -246,8 +244,7 @@ export default function OrderDetailPage() {
                     ))
                   ) : (
                     <div className="rounded-xl bg-surface-container-lowest p-5 text-sm text-muted">
-                      Webhook events will appear here after SweetBook sends status
-                      updates for production or shipping.
+                      SweetBook에서 제작 또는 배송 상태 업데이트를 보내면 여기에 웹훅 이벤트가 표시됩니다.
                     </div>
                   )}
                 </div>
@@ -256,32 +253,16 @@ export default function OrderDetailPage() {
           </div>
 
           <section className="mt-16">
-            <div
-              className="rounded-2xl p-10 flex flex-col items-center gap-6"
-              style={{
-                background:
-                  "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
-              }}
-            >
+            <div className="flex flex-col items-center gap-6 rounded-2xl bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] p-10">
               <div className="text-center">
-                <p
-                  className="text-xs uppercase tracking-[0.25em]"
-                  style={{ color: "rgba(255,255,255,0.4)" }}
-                >
-                  AI Soundtrack
+                <p className="text-xs uppercase tracking-[0.25em] text-white/40">
+                  AI 사운드트랙
                 </p>
-                <h2
-                  className="mt-2 text-xl font-semibold"
-                  style={{ color: "rgba(255,255,255,0.9)" }}
-                >
-                  Listen to the book
+                <h2 className="mt-2 text-xl font-semibold text-white/90">
+                  책의 BGM을 들어보세요
                 </h2>
-                <p
-                  className="mt-3 text-sm"
-                  style={{ color: "rgba(255,255,255,0.5)" }}
-                >
-                  Scan the QR code to open the lightweight soundtrack page for this
-                  project.
+                <p className="mt-3 text-sm text-white/50">
+                  QR 코드를 스캔해 이 프로젝트의 사운드트랙 페이지를 열어보세요.
                 </p>
               </div>
               <SoundtrackQR

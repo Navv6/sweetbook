@@ -11,7 +11,7 @@ function SoundtrackContent() {
   const project = useProjectStore((state) => state.projects[params.id]);
 
   const titleFromUrl = searchParams.get("t") ?? null;
-  const displayTitle = project?.title ?? titleFromUrl ?? "Photo Book Soundtrack";
+  const displayTitle = project?.title ?? titleFromUrl ?? "포토북 사운드트랙";
 
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +20,7 @@ function SoundtrackContent() {
   useEffect(() => {
     if (!project) {
       setAudioUrl(null);
-      setMessage("Soundtrack is not configured for this project yet.");
+      setMessage("이 프로젝트에는 아직 사운드트랙이 설정되지 않았습니다.");
       setLoading(false);
       return;
     }
@@ -41,15 +41,15 @@ function SoundtrackContent() {
 
         if (!response.ok) {
           setAudioUrl(null);
-          setMessage(data.message ?? "Soundtrack is not available right now.");
+          setMessage(data.message ?? "사운드트랙을 지금 사용할 수 없습니다.");
           return;
         }
 
         setAudioUrl(data.audioUrl ?? null);
-        setMessage(data.audioUrl ? null : "Soundtrack is not available right now.");
+        setMessage(data.audioUrl ? null : "사운드트랙을 지금 사용할 수 없습니다.");
       } catch {
         setAudioUrl(null);
-        setMessage("Soundtrack is not available right now.");
+        setMessage("사운드트랙을 지금 사용할 수 없습니다.");
       } finally {
         setLoading(false);
       }
@@ -59,73 +59,46 @@ function SoundtrackContent() {
   }, [params.id, project]);
 
   return (
-    <main
-      className="min-h-screen flex flex-col items-center justify-center px-6 py-16"
-      style={{
-        background:
-          "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
-      }}
-    >
-      <div className="flex flex-col items-center gap-10 text-center max-w-lg w-full">
-        <p
-          className="text-xs uppercase tracking-[0.3em]"
-          style={{ color: "rgba(255,255,255,0.4)" }}
-        >
-          SweetBook Soundtrack
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] px-6 py-16">
+      <div className="flex w-full max-w-lg flex-col items-center gap-10 text-center">
+        <p className="text-xs uppercase tracking-[0.3em] text-white/40">
+          사운드트랙
         </p>
 
-        <div style={{ color: "rgba(255,255,255,0.15)", fontSize: "4rem" }}>
-          ♪
-        </div>
+        <div className="text-[4rem] text-white/15">♪</div>
 
-        <h1
-          className="text-3xl font-semibold leading-tight"
-          style={{ color: "rgba(255,255,255,0.95)" }}
-        >
+        <h1 className="text-3xl font-semibold leading-tight text-white/95">
           {displayTitle}
         </h1>
 
         <div className="w-full">
           {loading ? (
             <div className="flex flex-col items-center gap-4">
-              <div
-                className="h-1 w-48 overflow-hidden rounded-full"
-                style={{ background: "rgba(255,255,255,0.1)" }}
-              >
-                <div
-                  className="h-full w-1/2 rounded-full animate-pulse"
-                  style={{ background: "rgba(255,255,255,0.4)" }}
-                />
+              <div className="h-1 w-48 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full w-1/2 animate-pulse rounded-full bg-white/40" />
               </div>
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
-                Generating a lightweight soundtrack for the book.
+              <p className="text-sm text-white/40">
+                사운드트랙을 생성하고 있습니다.
               </p>
             </div>
           ) : audioUrl ? (
             <audio
               controls
               autoPlay
-              className="w-full"
-              style={{ borderRadius: "8px" }}
+              className="w-full rounded-lg"
               src={audioUrl}
             >
-              Your browser does not support audio playback.
+              오디오 재생을 지원하지 않는 브라우저입니다.
             </audio>
           ) : (
-            <p
-              className="text-sm leading-relaxed"
-              style={{ color: "rgba(255,255,255,0.4)" }}
-            >
-              {message ?? "Soundtrack is not configured for this project yet."}
+            <p className="text-sm leading-relaxed text-white/40">
+              {message ?? "이 프로젝트에는 아직 사운드트랙이 설정되지 않았습니다."}
             </p>
           )}
         </div>
 
-        <p
-          className="text-[11px] uppercase tracking-[0.25em] mt-8"
-          style={{ color: "rgba(255,255,255,0.2)" }}
-        >
-          Powered by SweetBook Studio
+        <p className="mt-8 text-[11px] uppercase tracking-[0.25em] text-white/20">
+          SweetBook Studio 제공
         </p>
       </div>
     </main>

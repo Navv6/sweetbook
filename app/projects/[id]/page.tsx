@@ -173,7 +173,7 @@ export default function EditorPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to calculate the estimate.");
+        throw new Error("견적 계산에 실패했습니다.");
       }
 
       const payload = (await response.json()) as { estimate: Project["estimate"] };
@@ -187,7 +187,7 @@ export default function EditorPage() {
       alert(
         error instanceof Error
           ? error.message
-          : "An unexpected error occurred while calculating the estimate.",
+          : "견적 계산 중 오류가 발생했습니다.",
       );
     } finally {
       setIsEstimating(false);
@@ -202,14 +202,13 @@ export default function EditorPage() {
           <Container>
             <Card className="bg-surface-container-low p-10 text-center shadow-none">
               <p className="display-copy text-4xl italic text-foreground">
-                Missing Project
+                프로젝트를 찾을 수 없음
               </p>
               <p className="editorial-copy mt-4 text-sm">
-                The project record is not available in local state. Start a new one
-                from the studio and regenerate the template pages.
+                로컬 상태에 프로젝트 데이터가 없습니다. 스튜디오에서 새 프로젝트를 시작하고 템플릿 페이지를 다시 생성하세요.
               </p>
               <div className="mt-8 flex justify-center">
-                <Button href="/studio/new">New Project</Button>
+                <Button href="/studio/new">새 프로젝트</Button>
               </div>
             </Card>
           </Container>
@@ -226,14 +225,13 @@ export default function EditorPage() {
           <Container>
             <Card className="bg-surface-container-low p-10 text-center shadow-none">
               <p className="display-copy text-4xl italic text-foreground">
-                Refresh Required
+                다시 생성 필요
               </p>
               <p className="editorial-copy mt-4 text-sm">
-                Stored project data is missing the SweetBook schema required for the
-                editor. Start from the studio again to regenerate the template pages.
+                저장된 프로젝트 데이터에 편집기에 필요한 SweetBook 스키마가 없습니다. 스튜디오로 돌아가서 템플릿 페이지를 다시 생성하세요.
               </p>
               <div className="mt-8 flex justify-center">
-                <Button href="/studio/new">Back to Studio</Button>
+                <Button href="/studio/new">스튜디오로 돌아가기</Button>
               </div>
             </Card>
           </Container>
@@ -254,22 +252,20 @@ export default function EditorPage() {
         <Container>
           <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <p className="section-label">Template Parameter Editor</p>
+              <p className="section-label">템플릿 편집기</p>
               <h1 className="display-copy mt-4 text-4xl font-semibold md:text-6xl">
                 {project.title}
               </h1>
               <p className="editorial-copy mt-4 max-w-2xl text-sm">
-                Each page is driven by the SweetBook template schema for the selected
-                family. Edit the text, image, and gallery parameters the template
-                requests, then review the exact page sequence before checkout.
+                선택한 템플릿 스키마 기반으로 각 페이지를 구성합니다. 텍스트, 이미지, 갤러리 파라미터를 편집하고 페이지 순서를 확인한 뒤 결제로 이동하세요.
               </p>
             </div>
             <div className="flex items-center gap-3">
               <Button variant="secondary" onClick={() => setIsPreviewOpen(true)}>
-                Preview Book
+                미리보기
               </Button>
               <Button onClick={handleEstimate} disabled={isEstimating}>
-                {isEstimating ? "Calculating..." : "Checkout"}
+                {isEstimating ? "계산 중..." : "결제하기"}
               </Button>
             </div>
           </div>
@@ -277,16 +273,16 @@ export default function EditorPage() {
           <div className="mb-6 flex flex-wrap items-center gap-6 rounded-full bg-surface-container-low px-5 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
             <span>{project.templateId}</span>
             <span>{project.bookSpecId}</span>
-            <span>{`${pageCount} Pages`}</span>
+            <span>{`${pageCount}페이지`}</span>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1.75fr)_320px]">
             <aside className="glass-panel rounded-[1.75rem] p-6">
               <div className="mb-6">
                 <p className="display-copy text-3xl italic text-foreground">
-                  Pages
+                  페이지
                 </p>
-                <p className="section-label mt-2">Schema order</p>
+                <p className="section-label mt-2">섹션 순서</p>
               </div>
               <SectionList
                 sections={orderedSections}
@@ -308,7 +304,7 @@ export default function EditorPage() {
                 />
               ) : (
                 <Card className="bg-surface-container-low p-10 text-center shadow-none">
-                  <p className="section-label">No page selected</p>
+                  <p className="section-label">페이지를 선택하세요</p>
                 </Card>
               )}
 
@@ -328,7 +324,7 @@ export default function EditorPage() {
                     }
                   }}
                 >
-                  Previous
+                  이전
                 </button>
                 <div className="flex gap-2">
                   {orderedSections.slice(0, 8).map((section) => (
@@ -357,7 +353,7 @@ export default function EditorPage() {
                     }
                   }}
                 >
-                  Next
+                  다음
                 </button>
               </div>
             </section>

@@ -24,7 +24,7 @@ export function InspectorPanel({
   if (!page) {
     return (
       <aside className="glass-panel rounded-[1.75rem] p-6">
-        <p className="section-label">Inspector</p>
+        <p className="section-label">인스펙터</p>
       </aside>
     );
   }
@@ -33,7 +33,7 @@ export function InspectorPanel({
 
   return (
     <aside className="glass-panel rounded-[1.75rem] p-6">
-      <p className="section-label">Inspector</p>
+      <p className="section-label">인스펙터</p>
       <div className="mt-4 rounded-2xl bg-surface-container-low p-5">
         <p className="display-copy text-2xl italic text-foreground">
           {page.templateName}
@@ -69,7 +69,7 @@ export function InspectorPanel({
                 >
                   <p className="section-label">{fieldLabel(key, definition)}</p>
                   <p className="mt-2 text-xs text-secondary">
-                    {`${gallery.length} image slot${gallery.length === 1 ? "" : "s"}`}
+                    {`이미지 슬롯 ${gallery.length}개`}
                   </p>
                 </button>
                 <div className="mt-4 grid gap-3">

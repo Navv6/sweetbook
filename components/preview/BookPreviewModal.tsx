@@ -144,7 +144,7 @@ export function BookPreviewModal({
             type="button"
             onClick={handleClose}
             className="absolute right-0 top-0 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/12 text-xl text-white transition hover:bg-white/20"
-            aria-label="Close preview"
+            aria-label="미리보기 닫기"
           >
             ×
           </button>
@@ -152,7 +152,7 @@ export function BookPreviewModal({
           <section className="min-w-0">
             <div className="mb-6 text-center">
               <p className="text-xs uppercase tracking-[0.25em] text-white/50">
-                Book Preview
+                책 미리보기
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-white">
                 {project.title}
@@ -201,36 +201,38 @@ export function BookPreviewModal({
           </section>
 
           <aside className="self-center rounded-[2rem] bg-white/10 p-6 text-white">
-            <p className="section-label text-white/60">Spread</p>
+            <p className="section-label text-white/60">스프레드</p>
             <p className="mt-3 text-3xl font-semibold">
               {`${currentSpread + 1}/${Math.max(spreads.length, 1)}`}
             </p>
 
             <div className="mt-4 space-y-2 text-sm text-white/70">
               <p>{project.bookSpecId}</p>
-              <p>{`${pages.length} pages`}</p>
+              <p>{`${pages.length}페이지`}</p>
             </div>
 
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
+                disabled={currentSpread === 0}
                 onClick={() =>
                   setCurrentSpread((current) => Math.max(current - 1, 0))
                 }
-                className="rounded-full bg-white/10 px-4 py-2 text-sm transition hover:bg-white/20"
+                className="rounded-full bg-white/10 px-4 py-2 text-sm transition hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Prev
+                이전
               </button>
               <button
                 type="button"
+                disabled={currentSpread === spreads.length - 1}
                 onClick={() =>
                   setCurrentSpread((current) =>
                     Math.min(current + 1, spreads.length - 1),
                   )
                 }
-                className="rounded-full bg-white/10 px-4 py-2 text-sm transition hover:bg-white/20"
+                className="rounded-full bg-white/10 px-4 py-2 text-sm transition hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Next
+                다음
               </button>
             </div>
 

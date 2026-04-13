@@ -11,17 +11,13 @@ export function Header() {
               SweetBook Studio
             </p>
             <div className="hidden h-4 w-px bg-outline md:block" />
-            <p className="section-label hidden md:block">
-              {"\uC5D0\uB514\uD1A0\uB9AC\uC5BC \uBAA8\uB178\uADF8\uB798\uD504 \uBAA8\uB4DC"}
-            </p>
+            <p className="section-label hidden md:block">에디토리얼 스튜디오</p>
           </div>
           <div className="flex items-center gap-4 md:gap-6">
             <Button href="/#demo" variant="ghost">
-              {"\uC1FC\uCF00\uC774\uC2A4"}
+              쇼케이스
             </Button>
-            <Button href="/studio/new">
-              {"\uC0C8 \uD504\uB85C\uC81D\uD2B8"}
-            </Button>
+            <Button href="/studio/new">새 프로젝트</Button>
           </div>
         </div>
       </Container>

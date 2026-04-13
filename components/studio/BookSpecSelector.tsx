@@ -22,10 +22,10 @@ export function BookSpecSelector({
             key={bookSpec.id}
             type="button"
             onClick={() => onSelect(bookSpec.id)}
-            className={`w-full rounded-xl px-5 py-5 text-left transition ${
+            className={`w-full rounded-xl border px-5 py-5 text-left transition ${
               isSelected
-                ? "bg-surface-container-highest"
-                : "bg-surface-container-low hover:bg-surface-container-high"
+                ? "border-primary/30 bg-surface-container-highest"
+                : "border-transparent bg-surface-container-low hover:border-outline hover:bg-surface-container-high"
             }`}
           >
             <div className="flex items-start justify-between gap-4">

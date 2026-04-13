@@ -31,7 +31,7 @@ export function SectionList({
               onClick={() => onSelect(section.id)}
               className="w-full text-left"
             >
-              <p className="section-label">{`Page ${page?.pageNumber ?? index + 1}`}</p>
+              <p className="section-label">{`${page?.pageNumber ?? index + 1}페이지`}</p>
               <p className="mt-3 text-base font-semibold text-foreground">
                 {section.title}
               </p>
@@ -40,17 +40,23 @@ export function SectionList({
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
-                className="rounded-md bg-surface-container-low px-3 py-2 text-xs font-semibold text-secondary transition hover:bg-surface-container-high"
+                aria-label="위로 이동"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-container-low text-secondary transition hover:bg-surface-container-high"
                 onClick={() => onMove(section.id, "up")}
               >
-                Up
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 11V3M3.5 6.5L7 3L10.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
               <button
                 type="button"
-                className="rounded-md bg-surface-container-low px-3 py-2 text-xs font-semibold text-secondary transition hover:bg-surface-container-high"
+                aria-label="아래로 이동"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-container-low text-secondary transition hover:bg-surface-container-high"
                 onClick={() => onMove(section.id, "down")}
               >
-                Down
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 3V11M10.5 7.5L7 11L3.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </div>
           </div>

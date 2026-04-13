@@ -38,7 +38,7 @@ export function TemplateSelector({
                 />
               ) : (
                 <div className="flex h-24 w-[4.5rem] flex-shrink-0 items-center justify-center rounded-xl bg-surface-container-lowest text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary">
-                  No Cover
+                  커버 없음
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -73,7 +73,7 @@ export function TemplateSelector({
                 </div>
 
                 <p className="mt-4 text-xs text-secondary">
-                  {`${template.templateCount} templates in this family`}
+                  {`이 패밀리의 템플릿 ${template.templateCount}개`}
                 </p>
               </div>
             </div>

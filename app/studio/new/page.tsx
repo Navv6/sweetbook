@@ -105,7 +105,7 @@ export default function NewProjectPage() {
     void fetch("/api/catalog", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Failed to load the catalog.");
+          throw new Error("카탈로그를 불러오지 못했습니다.");
         }
 
         return response.json() as Promise<{
@@ -139,7 +139,7 @@ export default function NewProjectPage() {
           setCatalogNotice(
             error instanceof Error
               ? error.message
-              : "Failed to load the SweetBook catalog.",
+              : "SweetBook 카탈로그를 불러오지 못했습니다.",
           );
           setIsCatalogLoading(false);
         }
@@ -184,7 +184,7 @@ export default function NewProjectPage() {
       Array.from(files).map(async (file, index) => ({
         id: crypto.randomUUID(),
         kind: "image" as const,
-        title: file.name.replace(/\.[^.]+$/, "") || `Upload ${index + 1}`,
+        title: file.name.replace(/\.[^.]+$/, "") || `업로드 ${index + 1}`,
         imageUrl: await readFileAsDataUrl(file),
         fileName: file.name,
         createdAt: new Date().toISOString(),
@@ -217,7 +217,7 @@ export default function NewProjectPage() {
       });
 
       if (!createResponse.ok) {
-        throw new Error("Failed to create the project.");
+        throw new Error("프로젝트를 생성하지 못했습니다.");
       }
 
       const createdProject = (await createResponse.json()) as { project: Project };
@@ -236,7 +236,7 @@ export default function NewProjectPage() {
       );
 
       if (!generateResponse.ok) {
-        throw new Error("Failed to generate template pages.");
+        throw new Error("템플릿 페이지를 생성하지 못했습니다.");
       }
 
       const generatedProject = (await generateResponse.json()) as {
@@ -248,7 +248,7 @@ export default function NewProjectPage() {
       alert(
         error instanceof Error
           ? error.message
-          : "An unexpected error occurred while creating the project.",
+          : "프로젝트 생성 중 오류가 발생했습니다.",
       );
     } finally {
       setIsGenerating(false);
@@ -261,14 +261,12 @@ export default function NewProjectPage() {
       <main className="px-6 py-10 md:px-0 md:py-14">
         <Container>
           <div className="mb-10 max-w-3xl">
-            <p className="section-label">Curation Studio</p>
+            <p className="section-label">큐레이션 스튜디오</p>
             <h1 className="display-copy mt-4 text-4xl font-semibold md:text-6xl">
-              Pick a family, then edit real template schemas
+              테마 패밀리를 고르고 실제 템플릿을 구성하세요
             </h1>
             <p className="editorial-copy mt-4 max-w-2xl text-sm">
-              Select the theme family, upload a cover image and a few content
-              images, then generate the exact SweetBook template pages for the
-              chosen family and book spec.
+              테마 패밀리와 판형을 선택하고, 표지 이미지와 콘텐츠 사진을 업로드한 뒤 페이지를 생성하세요.
             </p>
           </div>
 
@@ -277,7 +275,7 @@ export default function NewProjectPage() {
               <Card className="bg-surface-container-low p-8 shadow-none">
                 <div className="space-y-5">
                   <div>
-                    <label className="section-label block">Project Title</label>
+                    <label className="section-label block">프로젝트 제목</label>
                     <Input
                       value={title}
                       onChange={(event) => setTitle(event.target.value)}
@@ -287,14 +285,29 @@ export default function NewProjectPage() {
 
                   <div className="grid gap-5 md:grid-cols-2">
                     <div className="rounded-2xl bg-surface-container-lowest p-5">
-                      <p className="section-label">Cover Image</p>
-                      <label className="mt-4 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl bg-surface-container-low px-4 text-center">
-                        <span className="display-copy text-3xl italic text-foreground">
-                          Cover
-                        </span>
-                        <span className="editorial-copy mt-3 text-sm">
-                          Upload the image used for the cover slot.
-                        </span>
+                      <p className="section-label">표지 이미지</p>
+                      <label className="mt-4 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl bg-surface-container-low px-4 text-center overflow-hidden relative">
+                        {coverImageUrl ? (
+                          <>
+                            <img
+                              src={coverImageUrl}
+                              alt="표지 미리보기"
+                              className="absolute inset-0 h-full w-full object-cover rounded-xl"
+                            />
+                            <span className="relative z-10 rounded-md bg-black/50 px-3 py-1 text-xs font-semibold text-white">
+                              변경
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="display-copy text-3xl italic text-foreground">
+                              표지
+                            </span>
+                            <span className="editorial-copy mt-3 text-sm">
+                              표지에 사용할 이미지를 업로드하세요.
+                            </span>
+                          </>
+                        )}
                         <input
                           type="file"
                           accept="image/*"
@@ -311,15 +324,28 @@ export default function NewProjectPage() {
 
                     <div className="rounded-2xl bg-surface-container-lowest p-5">
                       <div className="flex items-center justify-between">
-                        <p className="section-label">Content Images</p>
+                        <p className="section-label">콘텐츠 이미지</p>
                       </div>
                       <label className="mt-4 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl bg-surface-container-low px-4 text-center">
-                        <span className="display-copy text-3xl italic text-foreground">
-                          Upload
-                        </span>
-                        <span className="editorial-copy mt-3 text-sm">
-                          Upload several photos to fill the gallery and content slots.
-                        </span>
+                        {contentItems.length > 0 ? (
+                          <>
+                            <span className="display-copy text-3xl italic text-foreground">
+                              {contentItems.length}장
+                            </span>
+                            <span className="editorial-copy mt-3 text-sm">
+                              클릭하여 다시 업로드
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="display-copy text-3xl italic text-foreground">
+                              업로드
+                            </span>
+                            <span className="editorial-copy mt-3 text-sm">
+                              갤러리와 콘텐츠 슬롯을 채울 사진을 여러 장 업로드하세요.
+                            </span>
+                          </>
+                        )}
                         <input
                           type="file"
                           multiple
@@ -356,11 +382,11 @@ export default function NewProjectPage() {
               </Card>
 
               <Card className="bg-surface-container-low p-8 shadow-none">
-                <p className="section-label">Book Spec</p>
+                <p className="section-label">책 사양</p>
                 <div className="mt-5">
                   {isCatalogLoading ? (
                     <div className="rounded-2xl bg-surface-container-lowest px-5 py-6 text-sm text-secondary">
-                      Loading book specs...
+                      책 사양 불러오는 중...
                     </div>
                   ) : (
                     <BookSpecSelector
@@ -375,7 +401,7 @@ export default function NewProjectPage() {
               <Card className="bg-surface-container-low p-8 shadow-none">
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                   <div>
-                    <p className="section-label">Theme Family</p>
+                    <p className="section-label">테마 패밀리</p>
                     {catalogNotice && (
                       <p className="editorial-copy mt-3 text-xs text-secondary">
                         {catalogNotice}
@@ -385,10 +411,10 @@ export default function NewProjectPage() {
                   {templateSummary && (
                     <div className="rounded-2xl bg-surface-container-lowest px-4 py-3 text-right">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
-                        Catalog
+                        카탈로그
                       </p>
                       <p className="mt-1 text-sm font-semibold text-foreground">
-                        {`${templateSummary.familyCount} families / ${templateSummary.totalTemplates} templates`}
+                        {`${templateSummary.familyCount}개 패밀리 / ${templateSummary.totalTemplates}개 템플릿`}
                       </p>
                     </div>
                   )}
@@ -403,7 +429,7 @@ export default function NewProjectPage() {
                     />
                   ) : (
                     <div className="rounded-2xl bg-surface-container-lowest px-5 py-6 text-sm text-secondary">
-                      No SweetBook theme families are available.
+                      사용 가능한 테마 패밀리가 없습니다.
                     </div>
                   )}
                   {!isCatalogLoading &&
@@ -411,7 +437,7 @@ export default function NewProjectPage() {
                     selectedTemplate &&
                     !selectedTemplateIsAvailable && (
                       <div className="mt-4 rounded-2xl bg-surface-container-lowest px-5 py-4 text-sm text-secondary">
-                        This family is not available for the selected book spec in the current catalog.
+                        선택한 책 사양에서 이 패밀리를 사용할 수 없습니다.
                       </div>
                     )}
                 </div>
@@ -430,7 +456,7 @@ export default function NewProjectPage() {
                   }
                   className="min-w-52"
                 >
-                  {isGenerating ? "Generating..." : "Generate Schema Pages"}
+                  {isGenerating ? "생성 중..." : "페이지 생성하기"}
                 </Button>
               </div>
             </section>
@@ -447,8 +473,8 @@ export default function NewProjectPage() {
               <aside className="glass-panel sticky top-28 rounded-[2rem] p-6">
                 <div className="rounded-2xl bg-surface-container-low p-8 text-sm text-secondary">
                   {isCatalogLoading
-                    ? "Loading the SweetBook catalog..."
-                    : "Select a book spec and theme family to preview the generated book."}
+                    ? "카탈로그 불러오는 중..."
+                    : "책 사양과 테마 패밀리를 선택하면 미리보기가 표시됩니다."}
                 </div>
               </aside>
             )}
