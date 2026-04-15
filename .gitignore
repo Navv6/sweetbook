@@ -49,6 +49,8 @@ PAGE_SPEC.md
 FORM_ANSWERS_DRAFT.md
 extract-pdf.js
 move_audio.js
+move_audio.ps1
+developeroadmap.md
 
 # user-uploaded images (runtime, not versioned)
 /public/uploads/
