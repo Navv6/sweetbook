@@ -11,7 +11,11 @@ export const sanitizeDisplayImageUrl = (value?: string) => {
     return value;
   }
 
-  if (value.startsWith("/demo/") || value.startsWith("/theme/")) {
+  if (
+    value.startsWith("/demo/") ||
+    value.startsWith("/theme/") ||
+    value.startsWith("/uploads/")
+  ) {
     return value;
   }
 

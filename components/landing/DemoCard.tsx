@@ -11,7 +11,7 @@ export function DemoCard({
 }) {
   return (
     <Card className="rounded-xl bg-surface-container-low p-8 shadow-none">
-      <p className="display-copy text-3xl italic text-foreground">
+      <p className="display-copy text-3xl text-foreground">
         {`0${index}.`}
       </p>
       <h3 className="mt-6 text-xl font-semibold text-foreground">{title}</h3>

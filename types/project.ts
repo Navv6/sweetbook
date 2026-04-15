@@ -15,6 +15,7 @@ export type TemplateBinding =
   | "file"
   | "rowGallery"
   | "columnGallery"
+  | "collageGallery"
   | "unknown";
 
 export type TemplateParameterDefinition = {
@@ -174,6 +175,11 @@ export type SchemaGeneratedPage = {
   schema: TemplateSchema;
   parameters: Record<string, TemplateParameterValue>;
   assignedContentItemIds: string[];
+  /**
+   * 자유 레이아웃 편집기에서 수정한 elements.
+   * 존재하면 publish 시 POST /templates 로 커스텀 templateUid를 생성.
+   */
+  layoutOverrides?: TemplateLayoutElement[];
 };
 
 export type GeneratedPage = SchemaGeneratedPage;

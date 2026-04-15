@@ -12,7 +12,7 @@ export function TemplateSelector({
   onSelect: (templateId: string) => void;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="h-full min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
       {templates.map((template) => {
         const isSelected = template.id === selectedTemplateId;
 
@@ -56,25 +56,6 @@ export function TemplateSelector({
                     style={{ backgroundColor: template.accentColor }}
                   />
                 </div>
-
-                <p className="editorial-copy mt-3 text-sm">
-                  {template.description}
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {template.templateKinds.map((kind) => (
-                    <span
-                      key={`${template.id}-${kind}`}
-                      className="rounded-full bg-surface-container-lowest px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-secondary"
-                    >
-                      {kind}
-                    </span>
-                  ))}
-                </div>
-
-                <p className="mt-4 text-xs text-secondary">
-                  {`이 패밀리의 템플릿 ${template.templateCount}개`}
-                </p>
               </div>
             </div>
           </button>

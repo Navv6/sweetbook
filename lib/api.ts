@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 import OpenAI from "openai";
 
 import { saveProject } from "@/lib/project-repository";
@@ -19,10 +22,12 @@ import type {
   Order,
   Project,
   ShippingInfo,
+  TemplateLayoutElement,
   TemplateOption,
   TemplateParameterDefinition,
   TemplateParameterValue,
   TemplateSchema,
+  TemplateVariant,
 } from "@/types/project";
 
 const SWEETBOOK_BASE_URL =
@@ -133,6 +138,22 @@ const runWithConcurrency = async <T, R>(
   return results;
 };
 
+const cloneFormData = (source: FormData) => {
+  const cloned = new FormData();
+
+  for (const [key, value] of source.entries()) {
+    cloned.append(key, value);
+  }
+
+  return cloned;
+};
+
+const logPublishStep = (step: string, startedAt: number, extra?: string) => {
+  const elapsedMs = Date.now() - startedAt;
+  const suffix = extra ? ` ${extra}` : "";
+  console.log(`[publish] step ${step} ${elapsedMs}ms${suffix}`);
+};
+
 const fetchAllTemplateRecords = async () => {
   const records: Array<Record<string, unknown>> = [];
   let offset = 0;
@@ -173,7 +194,42 @@ const fetchTemplateDetailRecord = async (templateUid: string) => {
   const response = await sweetBookRequest<TemplateDetailResponse>(
     `/templates/${templateUid}`,
   );
+  console.log(
+    `[template:layout] ${templateUid}\n`,
+    JSON.stringify(response.data ?? null, null, 2),
+  );
   return response.data ?? null;
+};
+
+const UPLOADS_PREFIX = "/uploads/";
+
+const isLocalUpload = (value: string) => value.startsWith(UPLOADS_PREFIX);
+
+const mimeFromExt = (ext: string) => {
+  switch (ext.toLowerCase()) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    case ".gif":
+      return "image/gif";
+    default:
+      return "application/octet-stream";
+  }
+};
+
+const readLocalUpload = async (urlPath: string) => {
+  const filename = urlPath.slice(UPLOADS_PREFIX.length).split("/").pop() ?? "";
+  if (!filename || filename.includes("..")) {
+    throw new Error(`Invalid upload path: ${urlPath}`);
+  }
+  const abs = path.join(process.cwd(), "public", "uploads", filename);
+  const bytes = await readFile(abs);
+  const mime = mimeFromExt(path.extname(filename));
+  return new File([new Uint8Array(bytes)], filename, { type: mime });
 };
 
 const ensureAbsoluteAssetUrl = (value: string) => {
@@ -211,7 +267,12 @@ const buildTemplateCatalog = async (): Promise<TemplateCatalogData> => {
     throw new Error("SWEETBOOK_API_KEY is required to load the SweetBook catalog.");
   }
 
-  const items = await fetchAllTemplateRecords();
+  const allItems = await fetchAllTemplateRecords();
+  // 자유 레이아웃 편집기가 POST /templates 로 등록한 커스텀 템플릿을 카탈로그에서 제외
+  const items = allItems.filter((item) => {
+    const name = String(item.templateName ?? item.name ?? "");
+    return !name.includes("_custom_");
+  });
   const variants = normalizeTemplateVariants(items);
   const templates = buildTemplateFamilies(variants);
   const summary = buildCatalogSummary(variants, templates);
@@ -424,7 +485,8 @@ const buildPageParameters = (
   Object.entries(schema.parameterDefinitions).forEach(([key, definition]) => {
     if (
       definition.binding === "rowGallery" ||
-      definition.binding === "columnGallery"
+      definition.binding === "columnGallery" ||
+      definition.binding === "collageGallery"
     ) {
       const remaining = Math.max(imageItems.length - mediaCursor.value, 0);
       const desiredCount =
@@ -606,6 +668,11 @@ export const generateProjectSections = async (project: Project) => {
     .filter((record): record is Record<string, unknown> => Boolean(record))
     .map(normalizeTemplateSchema);
 
+  console.log(
+    `[template:normalized] ${selectedSchemas.length}개 스키마\n`,
+    JSON.stringify(selectedSchemas, null, 2),
+  );
+
   if (selectedSchemas.length === 0) {
     throw new Error(
       "No template schemas matched the selected theme family and book spec.",
@@ -718,10 +785,81 @@ export const estimateProject = async (
     shippingFee,
     subtotal,
     total,
-    note: "SweetBook Sandbox estimate",
+    note: "예상 견적",
   };
 };
 
+/**
+ * POST /templates with a custom layout (free-layout overrides).
+ * Returns the new templateUid from SweetBook.
+ */
+const postCustomTemplate = async (
+  page: GeneratedPage,
+  elements: TemplateLayoutElement[],
+): Promise<string> => {
+  const { schema } = page;
+
+  // Build parameter definitions — description is required by the API
+  const parameterDefinitions: Record<string, unknown> = {};
+  for (const [key, def] of Object.entries(schema.parameterDefinitions)) {
+    parameterDefinitions[key] = {
+      ...def,
+      description: def.description ?? key,
+    };
+  }
+
+  // API field names differ from our internal schema names:
+  //   internal name          → API field
+  //   schema.name            → templateName
+  //   schema.bookSpecId      → bookSpecUid
+  //   parameterDefinitions   → parameters.definitions
+  const body = {
+    templateName: `${schema.name}_custom_${Date.now()}`,
+    description: schema.description || schema.name,
+    templateKind: schema.templateKind,
+    theme: schema.theme,
+    bookSpecUid: schema.bookSpecId,
+    ...(schema.category ? { category: schema.category } : {}),
+    parameters: { definitions: parameterDefinitions },
+    layout: {
+      ...schema.layout,
+      elements,
+    },
+    ...(schema.layoutRules ? { layoutRules: schema.layoutRules } : {}),
+    ...(schema.baseLayer ? { baseLayer: schema.baseLayer } : {}),
+  };
+
+  const response = await sweetBookRequest<{ data: { templateUid: string } }>(
+    "/templates",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+
+  return response.data.templateUid;
+};
+
+/**
+ * Saves the current page layout as a reusable custom template on SweetBook.
+ * Uses `layoutOverrides` if present, otherwise the page's base schema elements.
+ * Returns the new templateUid.
+ */
+export const saveCustomTemplateFromPage = async (
+  page: GeneratedPage,
+): Promise<string> => {
+  const elements =
+    page.layoutOverrides && page.layoutOverrides.length > 0
+      ? page.layoutOverrides
+      : page.schema.layout.elements;
+  return postCustomTemplate(page, elements);
+};
+
+/**
+ * Returns the templateUid to use when publishing.
+ * If the page has layoutOverrides, registers a custom template first.
+ */
 const marshalTemplateParameters = async (
   definitions: Record<string, TemplateParameterDefinition>,
   parameters: Record<string, TemplateParameterValue>,
@@ -734,7 +872,8 @@ const marshalTemplateParameters = async (
 
     if (
       definition.binding === "rowGallery" ||
-      definition.binding === "columnGallery"
+      definition.binding === "columnGallery" ||
+      definition.binding === "collageGallery"
     ) {
       const items = Array.isArray(value) ? value : [];
       payload[key] = await Promise.all(
@@ -750,6 +889,11 @@ const marshalTemplateParameters = async (
             );
             return fieldName;
           }
+          if (isLocalUpload(item)) {
+            const fieldName = `${key}_${index}`;
+            formData.append(fieldName, await readLocalUpload(item));
+            return fieldName;
+          }
           return ensureAbsoluteAssetUrl(item);
         }),
       );
@@ -759,6 +903,9 @@ const marshalTemplateParameters = async (
     if (definition.binding === "file") {
       if (typeof value === "string" && value.startsWith("data:")) {
         formData.append(key, await toFileFromDataUrl(value, `${key}.jpg`));
+        payload[key] = key;
+      } else if (typeof value === "string" && isLocalUpload(value)) {
+        formData.append(key, await readLocalUpload(value));
         payload[key] = key;
       } else if (typeof value === "string") {
         payload[key] = ensureAbsoluteAssetUrl(value);
@@ -775,6 +922,32 @@ const marshalTemplateParameters = async (
 
   formData.append("parameters", JSON.stringify(payload));
   return formData;
+};
+
+const preparePageForPublish = async (
+  page: GeneratedPage,
+  registeredCustomUids: string[],
+) => {
+  const templateUid =
+    page.layoutOverrides && page.layoutOverrides.length > 0
+      ? await postCustomTemplate(page, page.layoutOverrides)
+      : page.templateUid;
+
+  if (page.layoutOverrides && page.layoutOverrides.length > 0) {
+    registeredCustomUids.push(templateUid);
+  }
+
+  const formData = await marshalTemplateParameters(
+    page.schema.parameterDefinitions,
+    page.parameters,
+  );
+  formData.append("templateUid", templateUid);
+
+  return {
+    page,
+    templateUid,
+    formData,
+  };
 };
 
 export const publishProject = async (
@@ -794,24 +967,26 @@ export const publishProject = async (
     };
   }
 
-  let bookUid = project.sweetbookBookUid;
-
-  if (!bookUid) {
-    const createResponse = await sweetBookRequest<{ data: { bookUid: string } }>(
-      "/books",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: project.title,
-          bookSpecUid: project.bookSpecId,
-          externalRef: project.id,
-        }),
-      },
-      `book-${project.id}-${Date.now()}`,
-    );
-    bookUid = createResponse.data.bookUid;
-  }
+  // 매 발행 시도마다 새 book을 생성한다.
+  // 기존 book을 재사용하면 DELETE /cover가 405로 막혀 "이미 표지 존재" 오류가 반복되므로
+  // 항상 클린 슬레이트에서 시작하는 것이 가장 안전하다.
+  const publishStartedAt = Date.now();
+  const createStartedAt = Date.now();
+  const createResponse = await sweetBookRequest<{ data: { bookUid: string } }>(
+    "/books",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: project.title,
+        bookSpecUid: project.bookSpecId,
+        externalRef: project.id,
+      }),
+    },
+    `book-${project.id}-${Date.now()}`,
+  );
+  logPublishStep("books:create", createStartedAt, `title=${project.title}`);
+  const bookUid = createResponse.data.bookUid;
 
   const pages = project.generatedSections.flatMap((section) => section.pages);
   const coverPage = pages.find((page) => page.kind === "cover");
@@ -820,50 +995,93 @@ export const publishProject = async (
     throw new Error("The selected family does not provide a cover template.");
   }
 
-  await sweetBookRequest(`/books/${bookUid}/contents`, {
-    method: "DELETE",
-  }).catch(() => undefined);
+  // 발행 중 등록한 커스텀 템플릿 uid를 추적 → 실패 시 롤백
+  const registeredCustomUids: string[] = [];
 
-  const coverForm = await marshalTemplateParameters(
-    coverPage.schema.parameterDefinitions,
-    coverPage.parameters,
-  );
-  coverForm.append("templateUid", coverPage.templateUid);
-  await sweetBookRequest(`/books/${bookUid}/cover`, {
-    method: "POST",
-    body: coverForm,
-  });
-
-  const contentPages = pages.filter(
-    (page) => page.kind === "content" || page.kind === "divider",
-  );
-
-  for (const page of contentPages) {
-    const formData = await marshalTemplateParameters(
-      page.schema.parameterDefinitions,
-      page.parameters,
+  const rollbackCustomTemplates = async () => {
+    await Promise.allSettled(
+      registeredCustomUids.map((uid) =>
+        sweetBookRequest(`/templates/${uid}`, { method: "DELETE" }).catch(() => undefined),
+      ),
     );
-    formData.append("templateUid", page.templateUid);
-    await sweetBookRequest(`/books/${bookUid}/contents?breakBefore=page`, {
-      method: "POST",
-      body: formData,
-    });
-  }
-
-  const finalizationResponse = await sweetBookRequest<{
-    data: { pageCount: number; finalizedAt: string };
-  }>(`/books/${bookUid}/finalization`, {
-    method: "POST",
-    headers: { "Content-Length": "0" },
-  });
-
-  return {
-    sweetbookBookUid: bookUid,
-    status: "published" as const,
-    pageCount: finalizationResponse.data.pageCount,
-    finalizedAt: finalizationResponse.data.finalizedAt,
-    isMock: false,
   };
+
+  try {
+    const prepareStartedAt = Date.now();
+
+    // 표지는 /cover 엔드포인트에 전송한 뒤 /contents 에도 추가해 페이지 수에 포함시킴
+    // 나머지(content·divider·publish)도 /contents 로 전송
+    const contentPages = pages.filter(
+      (page) =>
+        page.kind === "cover" ||
+        page.kind === "content" ||
+        page.kind === "divider" ||
+        page.kind === "publish",
+    );
+
+    const preparedPages = await runWithConcurrency(
+      contentPages,
+      3,
+      (page) => preparePageForPublish(page, registeredCustomUids),
+    );
+    logPublishStep("content:prepare", prepareStartedAt, `pages=${preparedPages.length}`);
+
+    const preparedCoverPage = preparedPages.find(
+      (preparedPage) => preparedPage.page.id === coverPage.id,
+    );
+
+    if (!preparedCoverPage) {
+      throw new Error("Failed to prepare the cover payload for publishing.");
+    }
+
+    const coverUploadStartedAt = Date.now();
+    await sweetBookRequest(`/books/${bookUid}/cover`, {
+      method: "POST",
+      body: cloneFormData(preparedCoverPage.formData),
+    });
+    logPublishStep(
+      "cover:upload",
+      coverUploadStartedAt,
+      `template=${preparedCoverPage.templateUid}`,
+    );
+
+    const contentUploadStartedAt = Date.now();
+    for (const [index, preparedPage] of preparedPages.entries()) {
+      const pageUploadStartedAt = Date.now();
+      await sweetBookRequest(`/books/${bookUid}/contents?breakBefore=page`, {
+        method: "POST",
+        body: cloneFormData(preparedPage.formData),
+      });
+      logPublishStep(
+        "content:page",
+        pageUploadStartedAt,
+        `page=${preparedPage.page.pageNumber} order=${index + 1}/${preparedPages.length}`,
+      );
+    }
+    logPublishStep("content:upload", contentUploadStartedAt, `pages=${preparedPages.length}`);
+
+    const finalizationStartedAt = Date.now();
+    const finalizationResponse = await sweetBookRequest<{
+      data: { pageCount: number; finalizedAt: string };
+    }>(`/books/${bookUid}/finalization`, {
+      method: "POST",
+      headers: { "Content-Length": "0" },
+    });
+    logPublishStep("finalization", finalizationStartedAt);
+    logPublishStep("total", publishStartedAt, `bookUid=${bookUid}`);
+
+    return {
+      sweetbookBookUid: bookUid,
+      status: "published" as const,
+      pageCount: finalizationResponse.data.pageCount,
+      finalizedAt: finalizationResponse.data.finalizedAt,
+      isMock: false,
+    };
+  } catch (error) {
+    // 발행 실패 시 이번 시도에서 등록한 커스텀 템플릿을 정리한다
+    await rollbackCustomTemplates();
+    throw error;
+  }
 };
 
 export const createProjectOrder = async (
@@ -905,6 +1123,38 @@ export const createProjectOrder = async (
   return response.data;
 };
 
+/**
+ * 자유 레이아웃 편집기로 저장된 커스텀 템플릿 목록을 반환합니다.
+ * templateName에 "_custom_" 패턴이 있는 항목만 포함합니다.
+ */
+export const getCustomTemplates = async (): Promise<TemplateVariant[]> => {
+  if (!hasSweetBookConfig()) {
+    throw new Error("SWEETBOOK_API_KEY is required.");
+  }
+  const allItems = await fetchAllTemplateRecords();
+  const customItems = allItems.filter((item) => {
+    const name = String(item.templateName ?? item.name ?? "");
+    return name.includes("_custom_");
+  });
+  return normalizeTemplateVariants(customItems);
+};
+
+/**
+ * 특정 커스텀 템플릿의 전체 스키마(레이아웃 포함)를 반환합니다.
+ */
+export const getCustomTemplateSchema = async (
+  templateUid: string,
+): Promise<TemplateSchema> => {
+  if (!hasSweetBookConfig()) {
+    throw new Error("SWEETBOOK_API_KEY is required.");
+  }
+  const record = await fetchTemplateDetailRecord(templateUid);
+  if (!record) {
+    throw new Error(`Template ${templateUid} not found.`);
+  }
+  return normalizeTemplateSchema(record);
+};
+
 export const derivePageCount = (project: Project) =>
   project.generatedSections.reduce(
     (count, section) => count + section.pages.length,
@@ -913,4 +1163,3 @@ export const derivePageCount = (project: Project) =>
 
 export const deriveProjectHeadline = (project: Project) =>
   project.generatedSections[0]?.title ?? project.title;
-

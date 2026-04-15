@@ -57,12 +57,12 @@ export const mockDemoCards = [
   {
     title: "템플릿 파라미터 편집",
     description:
-      "자체 레이아웃이 아닌 실제 SweetBook 템플릿 필드를 직접 조정합니다.",
+      "사진과 텍스트를 직접 조정해 페이지를 다듬습니다.",
   },
   {
     title: "출판 및 주문",
     description:
-      "Sandbox API 또는 목 모드로 생성·확정·주문 흐름을 동일하게 실행합니다.",
+      "결제 후 인쇄·제본을 거쳐 집까지 배송됩니다.",
   },
 ];
 

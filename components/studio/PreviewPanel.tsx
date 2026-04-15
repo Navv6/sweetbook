@@ -1,4 +1,5 @@
-import { sanitizeDisplayImageUrl } from "@/lib/media";
+import type { ReactNode } from "react";
+
 import type { BookSpecOption, TemplateOption } from "@/types/project";
 
 const formatBookSpecSize = (bookSpec: BookSpecOption) =>
@@ -8,33 +9,24 @@ const formatBookSpecPages = (bookSpec: BookSpecOption) =>
   `${bookSpec.minPages}–${bookSpec.maxPages}페이지 | +${bookSpec.pageStep} 단위`;
 
 export function PreviewPanel({
-  title,
   template,
   bookSpec,
-  coverImageUrl,
-  imageCount,
+  headerAction,
 }: {
-  title: string;
   template: TemplateOption;
   bookSpec: BookSpecOption;
-  coverImageUrl?: string;
-  imageCount: number;
+  headerAction?: ReactNode;
 }) {
   const aspectRatio = `${bookSpec.width} / ${bookSpec.height}`;
-  const previewTitle = title.trim() || "제목 없는 기록";
-  const previewCoverImageUrl =
-    sanitizeDisplayImageUrl(coverImageUrl) ?? "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80&auto=format&fit=crop";
 
   return (
-    <aside className="glass-panel sticky top-28 rounded-[2rem] p-5 lg:p-6">
-      <div className="flex items-center justify-between">
+    <div className="glass-panel rounded-[2rem] p-5 lg:p-6">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="section-label">프리뷰 모노그래프</p>
-          <p className="display-copy mt-3 text-2xl italic">{template.name}</p>
+          <p className="section-label">미리보기</p>
+          <p className="display-copy mt-3 text-2xl">{template.name}</p>
         </div>
-        <div className="rounded-full bg-surface-container-high px-3 py-1 text-xs font-semibold text-secondary">
-          {bookSpec.name}
-        </div>
+        {headerAction}
       </div>
 
       <div className="mt-6 rounded-[2rem] bg-surface-container-high p-3 md:p-4">
@@ -46,7 +38,7 @@ export function PreviewPanel({
             <div
               className="absolute inset-0 bg-cover bg-center"
               style={{
-                backgroundImage: `url(${previewCoverImageUrl})`,
+                backgroundImage: `url(https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80&auto=format&fit=crop)`,
               }}
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,27,52,0.08),rgba(13,27,52,0.62))]" />
@@ -55,43 +47,22 @@ export function PreviewPanel({
                 <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur">
                   {template.coverLabel}
                 </span>
-                <span className="text-xs uppercase tracking-[0.18em] text-white/70">
-                  {`${Math.max(imageCount, 6)}장`}
+                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] backdrop-blur">
+                  {bookSpec.name}
                 </span>
               </div>
               <div>
                 <p className="display-copy text-4xl leading-[0.96] font-semibold">
-                  {previewTitle}
+                  {template.name}
                 </p>
                 <p className="mt-4 max-w-xs text-sm leading-7 text-white/80">
-                  가장 큰 커버 이미지와 표지 카피를 기준으로 에디토리얼 초안이 조합됩니다.
+                  선택한 테마 패밀리와 판형 기반으로 에디토리얼 페이지가 조합됩니다.
                 </p>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl bg-surface-container-low p-5">
-          <p className="section-label">판형</p>
-          <p className="mt-3 text-base font-semibold text-foreground">
-            {bookSpec.name}
-          </p>
-          <p className="editorial-copy mt-2 text-sm text-secondary">
-            {formatBookSpecSize(bookSpec)}
-          </p>
-          <p className="editorial-copy mt-1 text-sm text-secondary">
-            {formatBookSpecPages(bookSpec)}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-surface-container-low p-5">
-          <p className="section-label">컨텐츠</p>
-          <p className="mt-3 text-base font-semibold text-foreground">
-            {`현재 ${imageCount}장 선택`}
-          </p>
-        </div>
-      </div>
-    </aside>
+    </div>
   );
 }

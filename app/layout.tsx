@@ -35,7 +35,7 @@ const notoSansKr = Noto_Sans_KR({
 export const metadata: Metadata = {
   title: "SweetBook Studio | Editorial Monograph",
   description:
-    "AI-assisted photobook publishing platform with a premium editorial experience",
+    "Premium photobook publishing platform with an editorial experience",
 };
 
 export default function RootLayout({

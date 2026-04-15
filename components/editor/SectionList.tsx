@@ -6,18 +6,21 @@ export function SectionList({
   onSelect,
   onMove,
   onDuplicate,
+  onDelete,
 }: {
   sections: GeneratedSection[];
   selectedSectionId: string | null;
   onSelect: (sectionId: string) => void;
   onMove: (sectionId: string, direction: "up" | "down") => void;
   onDuplicate: (sectionId: string) => void;
+  onDelete: (sectionId: string) => void;
 }) {
   return (
     <div className="space-y-3">
       {sections.map((section, index) => {
         const page = section.pages[0];
         const isSelected = selectedSectionId === section.id;
+        const isDuplicatable = page?.kind !== "cover" && page?.kind !== "publish";
 
         return (
           <div
@@ -60,17 +63,31 @@ export function SectionList({
                   <path d="M7 3V11M10.5 7.5L7 11L3.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
-              <button
-                type="button"
-                aria-label="섹션 복제"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-container-low text-secondary transition hover:bg-surface-container-high"
-                onClick={() => onDuplicate(section.id)}
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M3 10V3.5A1.5 1.5 0 0 1 4.5 2H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
+              {isDuplicatable && (
+                <button
+                  type="button"
+                  aria-label="섹션 복제"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-container-low text-secondary transition hover:bg-surface-container-high"
+                  onClick={() => onDuplicate(section.id)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M3 10V3.5A1.5 1.5 0 0 1 4.5 2H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+              {isDuplicatable && (
+                <button
+                  type="button"
+                  aria-label="섹션 삭제"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-container-low text-secondary transition hover:bg-red-100 hover:text-red-500"
+                  onClick={() => onDelete(section.id)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M2 4h10M5 4V2.5h4V4M5.5 6.5v4M8.5 6.5v4M3 4l.7 7.5A1 1 0 0 0 4.7 12.5h4.6a1 1 0 0 0 1-.9L11 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         );

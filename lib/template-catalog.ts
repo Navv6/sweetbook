@@ -95,6 +95,7 @@ const normalizeBinding = (value: unknown): TemplateBinding => {
     case "file":
     case "rowGallery":
     case "columnGallery":
+    case "collageGallery":
       return value;
     default:
       return "unknown";
@@ -550,7 +551,8 @@ export const normalizeParameterValue = (
 
   if (
     definition.binding === "rowGallery" ||
-    definition.binding === "columnGallery"
+    definition.binding === "columnGallery" ||
+    definition.binding === "collageGallery"
   ) {
     return [];
   }

@@ -9,9 +9,23 @@ import { BookPreviewModal } from "@/components/preview/BookPreviewModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { StepIndicator } from "@/components/ui/StepIndicator";
 import { sanitizeDisplayImageUrl } from "@/lib/media";
+import { getMinimumPageCount, isBelowMinimumPageCount } from "@/lib/spec-canvas";
 import { useProjectStore } from "@/store/useProjectStore";
-import type { Order, Project, ShippingInfo } from "@/types/project";
+import type { Estimate, Order, Project, ShippingInfo } from "@/types/project";
+
+const DEFAULT_SHIPPING: ShippingInfo = {
+  recipientName: "홍길동",
+  recipientPhone: "010-1234-5678",
+  postalCode: "06101",
+  address1: "서울시 강남구 테헤란로 123",
+  address2: "4층 401호",
+  memo: "스위트북 테스트 주문",
+};
+
+const formatCurrency = (value?: number) =>
+  value === undefined ? "- KRW" : `${value.toLocaleString()} KRW`;
 
 export default function CheckoutPage() {
   const params = useParams<{ id: string }>();
@@ -20,18 +34,17 @@ export default function CheckoutPage() {
   const upsertProject = useProjectStore((state) => state.upsertProject);
   const setOrder = useProjectStore((state) => state.setOrder);
   const setEstimate = useProjectStore((state) => state.setEstimate);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const clearEstimate = useProjectStore((state) => state.clearEstimate);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const lastEstimateRequestKeyRef = useRef<string | null>(null);
+  const [isEstimating, setIsEstimating] = useState(false);
+  const [isOrdering, setIsOrdering] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
+  const [estimateRetryNonce, setEstimateRetryNonce] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [shipping, setShipping] = useState<ShippingInfo>({
-    recipientName: "홍길동",
-    recipientPhone: "010-1234-5678",
-    postalCode: "06101",
-    address1: "서울특별시 강남구 테헤란로 123",
-    address2: "4층 401호",
-    memo: "샌드박스 테스트 주문",
-  });
+  const [shipping, setShipping] = useState<ShippingInfo>(DEFAULT_SHIPPING);
+  const isMountedRef = useRef(true);
+  const lastEstimateRequestKeyRef = useRef<string | null>(null);
+  const estimateSequenceRef = useRef(0);
 
   const derivedPageCount =
     project?.generatedSections.reduce(
@@ -40,9 +53,16 @@ export default function CheckoutPage() {
     ) ?? 0;
   const checkoutCoverImageUrl =
     sanitizeDisplayImageUrl(project?.coverImageUrl) ?? "/demo/cover-morning.svg";
+  const minimumPageCount = project ? getMinimumPageCount(project.bookSpecId) : 0;
+  const belowMinimumPages = project
+    ? isBelowMinimumPageCount(derivedPageCount, project.bookSpecId)
+    : false;
+  const isPublished = Boolean(
+    project?.status === "published" && project.sweetbookBookUid,
+  );
 
   const estimateRequest = useMemo(() => {
-    if (!project) {
+    if (!project || !isPublished) {
       return null;
     }
 
@@ -56,6 +76,7 @@ export default function CheckoutPage() {
         status: project.status,
         sweetbookBookUid: project.sweetbookBookUid,
         quantity,
+        estimateRetryNonce,
         contentItems: project.contentItems,
         generatedSections: project.generatedSections,
       }),
@@ -65,15 +86,30 @@ export default function CheckoutPage() {
         order: undefined,
       },
     };
-  }, [project, quantity]);
+  }, [estimateRetryNonce, isPublished, project, quantity]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!project || !estimateRequest || !isPublished) {
+      setIsEstimating(false);
+      return;
+    }
+
+    const hasCurrentEstimate = project.estimate?.quantity === quantity;
+
     if (
-      !project ||
-      !estimateRequest ||
-      !project.sweetbookBookUid ||
-      project.status !== "published"
+      hasCurrentEstimate &&
+      lastEstimateRequestKeyRef.current === null &&
+      estimateRetryNonce === 0
     ) {
+      lastEstimateRequestKeyRef.current = estimateRequest.requestKey;
       return;
     }
 
@@ -82,92 +118,110 @@ export default function CheckoutPage() {
     }
 
     lastEstimateRequestKeyRef.current = estimateRequest.requestKey;
+    const requestId = estimateSequenceRef.current + 1;
+    estimateSequenceRef.current = requestId;
 
-    let cancelled = false;
+    setEstimateError(null);
+    setIsEstimating(true);
+
+    if (!hasCurrentEstimate) {
+      clearEstimate(project.id);
+    }
 
     void fetch(`/api/projects/${project.id}/estimate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ project: estimateRequest.payload, quantity }),
     })
-      .then((response) => response.json())
-      .then((payload: { estimate: Project["estimate"] }) => {
-        if (!cancelled && payload.estimate) {
-          setEstimate(project.id, payload.estimate);
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | { estimate?: Estimate | null; message?: string }
+          | null;
+
+        if (!response.ok) {
+          throw new Error(payload?.message ?? "예상 금액을 계산하지 못했습니다.");
         }
+
+        if (!payload?.estimate) {
+          throw new Error("예상 금액을 계산하지 못했습니다.");
+        }
+
+        return payload.estimate;
       })
-      .catch(() => undefined);
+      .then((estimate) => {
+        if (!isMountedRef.current || estimateSequenceRef.current !== requestId) {
+          return;
+        }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [estimateRequest, project, quantity, setEstimate]);
+        setEstimate(project.id, estimate);
+      })
+      .catch((error) => {
+        if (!isMountedRef.current || estimateSequenceRef.current !== requestId) {
+          return;
+        }
 
-  const handleCheckout = async () => {
-    if (!project) {
+        setEstimateError(
+          error instanceof Error
+            ? error.message
+            : "예상 금액을 계산하지 못했습니다.",
+        );
+      })
+      .finally(() => {
+        if (!isMountedRef.current || estimateSequenceRef.current !== requestId) {
+          return;
+        }
+
+        setIsEstimating(false);
+      });
+  }, [
+    clearEstimate,
+    estimateRequest,
+    estimateRetryNonce,
+    isPublished,
+    project,
+    quantity,
+    setEstimate,
+  ]);
+
+
+  const handleOrder = async () => {
+    if (!project || !isPublished) {
       return;
     }
 
-    setIsSubmitting(true);
+    if (!project.estimate || project.estimate.quantity !== quantity) {
+      alert("주문 전에 최신 금액 계산이 필요합니다.");
+      return;
+    }
+
+    setIsOrdering(true);
 
     try {
-      let publishPayload: {
-        project: Project;
-        publish: { sweetbookBookUid: string };
-      };
-
-      if (project.status === "published" && project.sweetbookBookUid) {
-        publishPayload = {
-          project,
-          publish: { sweetbookBookUid: project.sweetbookBookUid },
-        };
-      } else {
-        const publishResponse = await fetch(`/api/projects/${project.id}/publish`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ project }),
-        });
-
-        if (!publishResponse.ok) {
-          const errBody = (await publishResponse.json().catch(() => null)) as
-            | { message?: string }
-            | null;
-          throw new Error(errBody?.message ?? "책 출판에 실패했습니다.");
-        }
-
-        publishPayload = (await publishResponse.json()) as {
-          project: Project;
-          publish: { sweetbookBookUid: string };
-        };
-      }
-
-      upsertProject(publishPayload.project);
-
       const orderResponse = await fetch(`/api/projects/${project.id}/order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          project: publishPayload.project,
+          project,
           quantity,
           shipping,
         }),
       });
 
-      if (!orderResponse.ok) {
-        const errBody = (await orderResponse.json().catch(() => null)) as
-          | { message?: string }
-          | null;
-        throw new Error(errBody?.message ?? "주문 생성에 실패했습니다.");
-      }
+      const orderPayload = (await orderResponse.json().catch(() => null)) as
+        | {
+            project: Project;
+            order: Order;
+            message?: string;
+          }
+        | null;
 
-      const orderPayload = (await orderResponse.json()) as {
-        project: Project;
-        order: Order;
-      };
+      if (!orderResponse.ok || !orderPayload?.project || !orderPayload.order) {
+        throw new Error(
+          orderPayload?.message ?? "주문을 생성하지 못했습니다.",
+        );
+      }
 
       upsertProject(orderPayload.project);
       setOrder(project.id, orderPayload.order);
@@ -176,11 +230,22 @@ export default function CheckoutPage() {
       alert(
         error instanceof Error
           ? error.message
-          : "결제 진행 중 오류가 발생했습니다.",
+          : "주문 중 오류가 발생했습니다.",
       );
     } finally {
-      setIsSubmitting(false);
+      setIsOrdering(false);
     }
+  };
+
+  const handleEstimateRetry = () => {
+    if (!project || !isPublished) {
+      return;
+    }
+
+    lastEstimateRequestKeyRef.current = null;
+    clearEstimate(project.id);
+    setEstimateError(null);
+    setEstimateRetryNonce((current) => current + 1);
   };
 
   if (!project) {
@@ -190,14 +255,15 @@ export default function CheckoutPage() {
         <main className="px-6 py-16 md:px-0">
           <Container>
             <Card className="bg-surface-container-low p-10 text-center shadow-none">
-              <p className="display-copy text-4xl italic text-foreground">
+              <p className="display-copy text-4xl text-foreground">
                 결제 정보 없음
               </p>
               <p className="editorial-copy mt-4 text-sm">
-                결제할 프로젝트가 없습니다. 새 프로젝트를 시작하고 템플릿 페이지를 먼저 생성하세요.
+                결제를 진행할 프로젝트를 찾지 못했습니다. 새 프로젝트를 만든 뒤
+                다시 시도해 주세요.
               </p>
               <div className="mt-8 flex justify-center">
-                <Button href="/studio/new">새 프로젝트</Button>
+                <Button href="/studio/new">새 프로젝트 만들기</Button>
               </div>
             </Card>
           </Container>
@@ -206,18 +272,62 @@ export default function CheckoutPage() {
     );
   }
 
+  if (belowMinimumPages) {
+    return (
+      <>
+        <Header />
+        <main className="px-6 py-16 md:px-0">
+          <Container>
+            <Card className="bg-surface-container-low p-10 text-center shadow-none">
+              <p className="display-copy text-4xl text-foreground">
+                주문 가능 페이지 수 미달
+              </p>
+              <p className="editorial-copy mt-4 text-sm">
+                {`현재 ${derivedPageCount}페이지로, ${project.bookSpecId} 판형의 최소 주문 가능 페이지 수 ${minimumPageCount}페이지를 채우지 못했습니다.`}
+              </p>
+              <p className="editorial-copy mt-2 text-sm">
+                에디터로 돌아가 페이지를 추가한 뒤 다시 진행해 주세요.
+              </p>
+              <div className="mt-8 flex justify-center gap-3">
+                <Button href={`/projects/${project.id}`}>에디터로 돌아가기</Button>
+              </div>
+            </Card>
+          </Container>
+        </main>
+      </>
+    );
+  }
+
+  const hasCurrentEstimate = project.estimate?.quantity === quantity;
+  const canOrder =
+    isPublished &&
+    hasCurrentEstimate &&
+    !estimateError &&
+    !isEstimating &&
+    !isOrdering;
+  const estimateStatusCopy = estimateError
+    ? estimateError
+    : isEstimating
+      ? "최신 확정 금액을 계산 중입니다."
+      : hasCurrentEstimate
+        ? ""
+        : "주문 전에 최신 금액 계산이 필요합니다.";
+
   return (
     <>
       <Header />
       <main className="px-6 py-12 md:px-0 md:py-16">
         <Container>
           <header className="mb-14">
+            <div className="mb-5">
+              <StepIndicator currentStep={3} projectId={params.id} />
+            </div>
             <p className="section-label">최종 결제</p>
             <h1 className="display-copy mt-4 text-5xl font-semibold md:text-6xl">
-              배송 정보를 확인하고 주문을 완료하세요
+              배송 정보를 확인하고 주문을 마무리하세요
             </h1>
             <p className="editorial-copy mt-4 max-w-2xl text-sm">
-              SweetBook Sandbox API를 통해 출판 및 주문 절차를 진행합니다.
+              확정 금액을 확인한 뒤 주문을 진행합니다.
             </p>
           </header>
 
@@ -225,12 +335,12 @@ export default function CheckoutPage() {
             <section className="space-y-14">
               <div>
                 <div className="mb-8 flex items-center gap-3">
-                  <span className="display-copy text-3xl italic">01.</span>
+                  <span className="display-copy text-3xl">01.</span>
                   <h2 className="section-label text-foreground">배송 정보</h2>
                 </div>
                 <div className="grid gap-8 md:grid-cols-2">
                   <div className="md:col-span-2">
-                    <label className="section-label block">수령인</label>
+                    <label className="section-label block">받는 분</label>
                     <Input
                       value={shipping.recipientName}
                       onChange={(event) =>
@@ -322,37 +432,12 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <div>
-                <div className="mb-8 flex items-center gap-3">
-                  <span className="display-copy text-3xl italic">02.</span>
-                  <h2 className="section-label text-foreground">주문 실행</h2>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-xl bg-surface-container-lowest p-6 shadow-[0_20px_40px_rgba(13,27,52,0.04)]">
-                    <p className="text-sm font-semibold text-foreground">
-                      출판
-                    </p>
-                    <p className="editorial-copy mt-2 text-sm">
-                      스키마 기반 페이지가 SweetBook 표지 및 내지 엔드포인트로 전송됩니다.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-surface-container-low p-6">
-                    <p className="text-sm font-semibold text-foreground">
-                      샌드박스
-                    </p>
-                    <p className="editorial-copy mt-2 text-sm">
-                      견적, 출판, 주문 처리에 API 키가 필요합니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
               <div className="rounded-2xl bg-[rgba(0,104,85,0.06)] p-6">
                 <p className="text-sm font-semibold text-success">
-                  템플릿 스키마 준비 완료
+                  출판 완료
                 </p>
                 <p className="editorial-copy mt-2 text-sm">
-                  프로젝트가 스키마 생성 페이지를 사용하며 해당 템플릿 인스턴스 그대로 출판됩니다.
+                  아래 확정 금액을 확인한 뒤 주문하기를 눌러 주세요.
                 </p>
               </div>
             </section>
@@ -376,7 +461,7 @@ export default function CheckoutPage() {
                       {project.title}
                     </p>
                     <p className="mt-3 text-xs uppercase tracking-[0.18em] text-secondary">
-                      {`테마 패밀리 · ${project.templateId}`}
+                      {`테마 ${project.templateId}`}
                     </p>
                     <ul className="mt-4 space-y-2 text-sm text-muted">
                       <li>{`${derivedPageCount}페이지`}</li>
@@ -386,19 +471,30 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className="mt-10 space-y-4 border-t border-outline pt-8 text-sm">
-                  <div className="flex items-center justify-between text-muted">
-                    <span>소계</span>
-                    <span>{project.estimate?.subtotal.toLocaleString() ?? "-"} KRW</span>
+                <div className="mt-10 rounded-2xl border border-outline/70 bg-surface-container-lowest p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="section-label text-foreground">확정 금액</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-secondary">
+                      출판 완료
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between text-muted">
-                    <span>배송비</span>
-                    <span>{project.estimate?.shippingFee.toLocaleString() ?? "-"} KRW</span>
+                  <div className="mt-5 space-y-4 text-sm">
+                    <div className="flex items-center justify-between text-muted">
+                      <span>상품금액</span>
+                      <span>{formatCurrency(project.estimate?.subtotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-muted">
+                      <span>배송비</span>
+                      <span>{formatCurrency(project.estimate?.shippingFee)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-outline pt-4 text-2xl font-semibold text-foreground">
+                      <span>합계</span>
+                      <span>{formatCurrency(project.estimate?.total)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between border-t border-outline pt-4 text-2xl font-semibold text-foreground">
-                    <span>합계</span>
-                    <span>{project.estimate?.total.toLocaleString() ?? "-"} KRW</span>
-                  </div>
+                  {estimateStatusCopy && (
+                    <p className="mt-4 text-sm text-muted">{estimateStatusCopy}</p>
+                  )}
                 </div>
 
                 <button
@@ -409,17 +505,42 @@ export default function CheckoutPage() {
                   미리보기
                 </button>
 
-                <Button
-                  type="button"
-                  className="mt-3 w-full py-4 text-base"
-                  onClick={handleCheckout}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "출판 및 주문 중..." : "출판 및 주문"}
-                </Button>
+                {isPublished ? (
+                  <>
+                    <Button
+                      type="button"
+                      className="mt-3 w-full py-4 text-base"
+                      onClick={handleOrder}
+                      disabled={!canOrder}
+                    >
+                      {isOrdering
+                        ? "주문 생성 중..."
+                        : isEstimating
+                          ? "금액 계산 중..."
+                          : "주문하기"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-3 w-full py-4 text-base"
+                      onClick={handleEstimateRetry}
+                      disabled={isEstimating || isOrdering}
+                    >
+                      금액 다시 계산
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    className="mt-3 w-full py-4 text-base"
+                    href={`/projects/${project.id}`}
+                  >
+                    에디터로 돌아가기
+                  </Button>
+                )}
 
                 <p className="mt-5 text-center text-[11px] uppercase tracking-[0.2em] text-secondary">
-                  SweetBook Sandbox 환경
+                  확정 금액 기준 결제
                 </p>
               </div>
             </aside>

@@ -1,77 +1,140 @@
+import Link from "next/link";
 import { Container } from "@/components/layout/Container";
 import { Button } from "@/components/ui/Button";
 
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden px-6 py-20 md:px-0 md:py-28">
+      {/* 배경 블러 오브 */}
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
+
       <Container>
-        <div className="grid items-center gap-16 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_0.9fr]">
+          {/* 왼쪽: 카피 */}
           <div className="space-y-8">
-            <p className="section-label">
-              AI 포토북 출판 플랫폼
-            </p>
-            <div className="space-y-6">
-              <h1 className="display-copy max-w-4xl text-5xl leading-[0.94] font-semibold text-foreground md:text-7xl">
-                흩어진 장면을
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-soft px-4 py-2">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                나만의 포토북 제작 서비스
+              </span>
+            </div>
+
+            <div className="space-y-5">
+              <h1 className="display-copy max-w-2xl text-5xl leading-[1.15] font-semibold text-foreground md:text-[4.25rem]">
+                사랑하는 사람에게
                 <br />
-                출판 가능한 한 권의
+                건넬 수 있는
                 <br />
-                <span className="italic font-normal">
-                  모노그래프
-                </span>
-                로 엮습니다.
+                <em className="not-italic font-normal text-primary">
+                  단 한 권의 선물
+                </em>
               </h1>
-              <p className="editorial-copy max-w-2xl text-lg">
-                사진, 짧은 기록, 작은 메모를 모아 에디토리얼 포토북 초안으로 정리하고, SweetBook Sandbox 주문까지 한 흐름으로 연결합니다.
+              <p className="editorial-copy max-w-xl text-lg">
+                가족 사진, 여행 기록, 아이의 성장. 직접 만든 포토북으로 마음을 전하세요.
               </p>
             </div>
+
             <div className="flex flex-wrap gap-4">
               <Button href="/studio/new">
-                첫 프로젝트 시작
+                포토북 만들기
+              </Button>
+              <Button href="#how-it-works" variant="secondary">
+                어떻게 만드나요?
               </Button>
             </div>
+
           </div>
 
+          {/* 오른쪽: 제품 미리보기 카드 */}
           <div className="relative">
-            <div className="absolute -left-10 top-14 hidden h-44 w-44 rounded-full bg-primary-soft blur-3xl lg:block" />
-            <div className="relative mx-auto max-w-[32rem]">
-              <div className="canvas-shadow rounded-[2rem] bg-surface-container-high p-6">
-                <div className="rounded-[1.5rem] bg-surface-container-lowest p-8">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="section-label">
-                        에디토리얼 표지 미리보기
-                      </p>
-                      <p className="display-copy mt-3 text-2xl italic">
-                        모노그래프 No. 04
-                      </p>
+            <div className="absolute -left-8 top-12 hidden h-56 w-56 rounded-full bg-primary/6 blur-3xl lg:block" />
+            <div className="relative mx-auto max-w-[30rem]">
+              <div className="canvas-shadow rounded-[2rem] bg-surface-container-high p-4">
+                <div className="rounded-[1.5rem] bg-surface-container-lowest">
+                  {/* 카드 헤더 */}
+                  <div className="flex items-center justify-between border-b border-outline/50 px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-3 w-3 rounded-full bg-surface-container-highest" />
+                      <div className="h-3 w-3 rounded-full bg-surface-container-highest" />
+                      <div className="h-3 w-3 rounded-full bg-primary/40" />
                     </div>
-                    <div className="rounded-full bg-surface-container-low px-3 py-1 text-xs font-semibold text-secondary">
-                      샌드박스
-                    </div>
+                    <span className="rounded-full bg-surface-container-low px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary">
+                      SweetBook Studio
+                    </span>
                   </div>
-                  <div className="mt-8 grid gap-6 md:grid-cols-[0.9fr_1.1fr]">
-                    <div className="space-y-4">
-                      <div className="aspect-[3/4] overflow-hidden rounded-sm bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=600&q=80&auto=format&fit=crop')" }} />
-                      <p className="text-xs uppercase tracking-[0.18em] text-secondary">
-                        컬렉터스 에디션
-                      </p>
+
+                  <div className="p-5">
+                    {/* 스텝 뱃지 */}
+                    <div className="mb-4 flex gap-2">
+                      {["템플릿", "에디터", "결제"].map((s, i) => (
+                        <span
+                          key={s}
+                          className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                            i === 1
+                              ? "bg-primary text-white"
+                              : "bg-surface-container-low text-secondary"
+                          }`}
+                        >
+                          {s}
+                        </span>
+                      ))}
                     </div>
-                    <div className="flex flex-col justify-between rounded-[1.5rem] bg-surface-container-low p-6">
-                      <div>
-                        <p className="display-copy text-3xl leading-tight font-semibold">
-                          기억을 정리하는
-                          <br />
-                          충분한 여백
+
+                    {/* 에디터 미리보기 */}
+                    <div className="grid gap-3 md:grid-cols-[0.85fr_1.15fr]">
+                      {/* 섹션 리스트 */}
+                      <div className="space-y-2 rounded-xl bg-surface-container-low p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-secondary">
+                          페이지
                         </p>
-                        <p className="editorial-copy mt-4 text-sm">
-                          커버, 섹션 제목, 페이지 흐름, 주문 요약까지 하나의 에디토리얼 경험으로 설계한 출판 스튜디오 입니다.
-                        </p>
+                        {["표지", "목차", "섹션 01", "섹션 02", "본문 A", "마무리"].map((s, i) => (
+                          <div
+                            key={s}
+                            className={`rounded-lg px-3 py-2 text-xs font-medium ${
+                              i === 2
+                                ? "bg-primary/10 text-primary"
+                                : "text-secondary"
+                            }`}
+                          >
+                            {s}
+                          </div>
+                        ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="aspect-[4/3] rounded-[1rem] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=80&auto=format&fit=crop')" }} />
-                        <div className="aspect-[4/3] rounded-[1rem] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80&auto=format&fit=crop')" }} />
+
+                      {/* 페이지 캔버스 미리보기 */}
+                      <div className="rounded-xl bg-surface-container-low p-3">
+                        <div
+                          className="relative overflow-hidden rounded-lg bg-cover bg-center"
+                          style={{
+                            aspectRatio: "210/297",
+                            backgroundImage:
+                              "url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&q=80&auto=format&fit=crop')",
+                          }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[rgba(13,27,52,0.55)]" />
+                          <div className="absolute bottom-3 left-3 right-3">
+                            <p className="display-copy text-sm font-semibold leading-tight text-white">
+                              기억을 정리하는
+                              <br />
+                              충분한 여백
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex justify-between text-[10px] font-semibold uppercase tracking-[0.16em] text-secondary">
+                          <span>섹션 01 · 표지</span>
+                          <span>36p</span>
+                        </div>
                       </div>
+                    </div>
+
+                    {/* 하단 액션 바 */}
+                    <div className="mt-4 flex items-center justify-between rounded-xl bg-surface-container-low px-4 py-3">
+                      <span className="text-xs text-secondary">
+                        구글포토북A · A4 소프트커버
+                      </span>
+                      <span className="rounded-full bg-primary px-3 py-1 text-[10px] font-semibold text-white">
+                        결제하기 →
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -18,20 +18,13 @@ function SoundtrackContent() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!project) {
-      setAudioUrl(null);
-      setMessage("이 프로젝트에는 아직 사운드트랙이 설정되지 않았습니다.");
-      setLoading(false);
-      return;
-    }
-
     const fetchMusic = async () => {
       try {
         const response = await fetch(`/api/projects/${params.id}/music`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            project,
+            project: project ?? { id: params.id },
           }),
         });
         const data = (await response.json()) as {

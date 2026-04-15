@@ -8,49 +8,23 @@ export async function POST(
 ) {
   await params; // consume params (id available if needed for logging)
 
-  if (!process.env.REPLICATE_API_TOKEN) {
-    return NextResponse.json(
-      { message: "Soundtrack generation is not configured yet." },
-      { status: 503 },
-    );
-  }
-
   try {
     const body = (await request.json()) as { project: Project };
     const { project } = body;
 
-    const firstSectionTitle =
-      project.generatedSections[0]?.title ?? "photo essay";
+    if (!project?.id) {
+      // project가 없어도 공유 MP3를 반환한다 (QR 외부 접속 대응)
+    }
 
-    const prompt = `ambient background music for photo essay book titled '${project.title}' with section '${firstSectionTitle}', soft piano, warm cinematic, nostalgic, gentle`;
-
-    const Replicate = (await import("replicate")).default;
-    const replicate = new Replicate({
-      auth: process.env.REPLICATE_API_TOKEN,
-    });
-
-    const output = await replicate.run(
-      "meta/musicgen:671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837ffe9a4",
-      {
-        input: {
-          prompt,
-          duration: 15,
-        },
-      },
-    );
-
-    const audioUrl =
-      typeof output === "string"
-        ? output
-        : Array.isArray(output)
-          ? (output[0] as string)
-          : null;
+    // Current soundtrack experience uses a shared MP3 asset.
+    // Personalized generation remains a later implementation step.
+    const audioUrl = "/soundtrack/The_Shutter_s_Pause.mp3";
 
     return NextResponse.json({ audioUrl }, { status: 200 });
   } catch (error) {
-    console.error("musicgen error:", error);
+    console.error("soundtrack load error:", error);
     return NextResponse.json(
-      { message: "Failed to generate the soundtrack." },
+      { message: "Failed to load the soundtrack." },
       { status: 500 },
     );
   }

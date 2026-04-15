@@ -9,6 +9,7 @@ import type {
   GeneratedSection,
   Order,
   Project,
+  TemplateLayoutElement,
   TemplateParameterDefinition,
   TemplateParameterValue,
 } from "@/types/project";
@@ -41,23 +42,47 @@ const sanitizeParameterValue = (
     return sanitizePersistentImageUrl(value) ?? "";
   }
 
-  if (
+  const isGalleryBinding =
     definition?.binding === "rowGallery" ||
-    definition?.binding === "columnGallery"
-  ) {
+    definition?.binding === "columnGallery" ||
+    definition?.binding === "collageGallery";
+
+  // Fallback: some SweetBook sandbox templates ship `binding: "unknown"` for
+  // array-typed image params (e.g. collagePhotos). Treat any array-typed
+  // parameter as an image array so data: URLs never hit localStorage.
+  const isArrayParam = definition?.type === "array" || Array.isArray(value);
+
+  if (isGalleryBinding || isArrayParam) {
     if (!Array.isArray(value)) {
       return [];
     }
 
     return value
-      .map((item) => sanitizePersistentImageUrl(item))
+      .map((item) =>
+        typeof item === "string" ? sanitizePersistentImageUrl(item) : undefined,
+      )
       .filter((item): item is string => Boolean(item));
+  }
+
+  // Any other string-valued parameter: strip data: URLs defensively.
+  if (typeof value === "string" && value.startsWith("data:")) {
+    return "";
   }
 
   return value;
 };
 
-const sanitizeProjectForPersist = (project: Project): Project => ({
+export const sanitizeLayoutOverridesForPersist = (
+  layoutOverrides?: TemplateLayoutElement[],
+) =>
+  layoutOverrides?.map((element) => ({
+    ...element,
+    imageSource: element.imageSource?.startsWith("data:")
+      ? undefined
+      : element.imageSource,
+  }));
+
+export const sanitizeProjectForPersist = (project: Project): Project => ({
   ...project,
   coverImageUrl: sanitizePersistentImageUrl(project.coverImageUrl),
   contentItems: project.contentItems.map((item) => ({
@@ -81,6 +106,7 @@ const sanitizeProjectForPersist = (project: Project): Project => ({
         ]),
       ),
       assignedContentItemIds: page.assignedContentItemIds,
+      layoutOverrides: sanitizeLayoutOverridesForPersist(page.layoutOverrides),
     })),
   })),
 });
@@ -94,6 +120,7 @@ type ProjectStore = {
   replaceSections: (projectId: string, sections: GeneratedSection[]) => void;
   reorderSections: (projectId: string, sectionOrder: string[]) => void;
   duplicateSection: (projectId: string, sectionId: string) => void;
+  deleteSection: (projectId: string, sectionId: string) => void;
   updatePageParameters: (
     projectId: string,
     pageId: string,
@@ -106,7 +133,14 @@ type ProjectStore = {
     contentItemId: string,
     imageUrl: string,
   ) => void;
+  updatePageLayoutOverride: (
+    projectId: string,
+    pageId: string,
+    elements: TemplateLayoutElement[],
+  ) => void;
+  updateProjectTitle: (projectId: string, title: string) => void;
   setEstimate: (projectId: string, estimate: Estimate) => void;
+  clearEstimate: (projectId: string) => void;
   setOrder: (projectId: string, order: Order) => void;
 };
 
@@ -218,6 +252,27 @@ export const useProjectStore = create<ProjectStore>()(
             };
           }),
         })),
+      deleteSection: (projectId, sectionId) =>
+        set((state) => ({
+          projects: updateProjectRecord(state.projects, projectId, (project) => {
+            const next = project.generatedSections.filter(
+              (s) => s.id !== sectionId,
+            );
+            let pageNumber = 1;
+            const renumbered = next.map((section) => ({
+              ...section,
+              pages: section.pages.map((page) => ({
+                ...page,
+                pageNumber: pageNumber++,
+              })),
+            }));
+            return {
+              ...project,
+              generatedSections: renumbered,
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        })),
       updatePageParameters: (projectId, pageId, updater) =>
         set((state) => ({
           projects: updateProjectRecord(state.projects, projectId, (project) => ({
@@ -255,11 +310,42 @@ export const useProjectStore = create<ProjectStore>()(
             updatedAt: new Date().toISOString(),
           })),
         })),
+      updatePageLayoutOverride: (projectId, pageId, elements) =>
+        set((state) => ({
+          projects: updateProjectRecord(state.projects, projectId, (project) => ({
+            ...project,
+            generatedSections: project.generatedSections.map((section) => ({
+              ...section,
+              pages: section.pages.map((page) =>
+                page.id === pageId
+                  ? { ...page, layoutOverrides: elements }
+                  : page,
+              ),
+            })),
+            updatedAt: new Date().toISOString(),
+          })),
+        })),
+      updateProjectTitle: (projectId, title) =>
+        set((state) => ({
+          projects: updateProjectRecord(state.projects, projectId, (project) => ({
+            ...project,
+            title,
+            updatedAt: new Date().toISOString(),
+          })),
+        })),
       setEstimate: (projectId, estimate) =>
         set((state) => ({
           projects: updateProjectRecord(state.projects, projectId, (project) => ({
             ...project,
             estimate,
+            updatedAt: new Date().toISOString(),
+          })),
+        })),
+      clearEstimate: (projectId) =>
+        set((state) => ({
+          projects: updateProjectRecord(state.projects, projectId, (project) => ({
+            ...project,
+            estimate: undefined,
             updatedAt: new Date().toISOString(),
           })),
         })),

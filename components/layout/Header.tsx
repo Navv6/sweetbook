@@ -12,10 +12,10 @@ export function Header() {
               SweetBook Studio
             </Link>
             <div className="hidden h-4 w-px bg-outline md:block" />
-            <p className="section-label hidden md:block">에디토리얼 스튜디오</p>
+            <p className="section-label hidden md:block">나만의 포토북 제작</p>
           </div>
           <div className="flex items-center gap-4 md:gap-6">
-            <Button href="/studio/new">새 프로젝트</Button>
+            <Button href="/studio/new">포토북 만들기</Button>
           </div>
         </div>
       </Container>
