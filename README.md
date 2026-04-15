@@ -5,9 +5,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-black)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8)](https://tailwindcss.com)
-[![Vercel](https://img.shields.io/badge/Deployed-Vercel-black)](https://sweetbook.vercel.app)
 
-**라이브 데모: [https://sweetbook.vercel.app](https://sweetbook.vercel.app)**
 
 ---
 
@@ -243,4 +241,4 @@ sweetbook/
 | `SWEETBOOK_API_KEY` | **필수** | SweetBook Sandbox API Key |
 | `SWEETBOOK_API_BASE_URL` | 선택 | 기본값: `https://api-sandbox.sweetbook.com/v1` |
 | `SWEETBOOK_WEBHOOK_SECRET` | 선택 | 웹훅 서명 검증 시크릿 (파트너 포털 발급) |
-| `NEXT_PUBLIC_APP_URL` | 선택 | 배포 URL (기본값: `https://sweetbook.vercel.app`) |
+| `NEXT_PUBLIC_APP_URL` | 선택 | 배포 URL (기본값: `https://sweetbook.vercel.app`) ##Webhook api 테스트용 배포 현재 작동 X| 
