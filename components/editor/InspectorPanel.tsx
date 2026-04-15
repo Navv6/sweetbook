@@ -120,8 +120,8 @@ function FieldHeader({
   title: string;
   trailing?: ReactNode;
 }) {
-  // "(예: ...)" 부분을 분리 — 영문/코드 예시는 한글 매핑으로 대체
-  const exampleMatch = title.match(/^(.+?)\s*(\(예[::].+\))$/s);
+  // "(예: ...)" 부분을 분리한다. ES2017 타깃에서도 동작하도록 `s` 플래그는 쓰지 않는다.
+  const exampleMatch = title.match(/^(.+?)\s*(\(예:\s*[\s\S]+\))$/);
   const mainTitle = exampleMatch ? exampleMatch[1].trim() : title;
   const rawCaption = exampleMatch ? exampleMatch[2] : null;
   // 영문/코드형 예시는 한글 예시 매핑으로 대체
