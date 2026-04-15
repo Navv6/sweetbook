@@ -50,14 +50,6 @@ type TemplateDetailResponse = {
   data?: Record<string, unknown>;
 };
 
-type TemplateSchemaCatalog = {
-  variants: ReturnType<typeof normalizeTemplateVariants>;
-  templates: TemplateOption[];
-  summary: CatalogSummary;
-  schemas: TemplateSchema[];
-  message: string;
-};
-
 type TemplateCatalogData = {
   variants: ReturnType<typeof normalizeTemplateVariants>;
   templates: TemplateOption[];
@@ -326,11 +318,6 @@ export const getTemplateCatalog = async (): Promise<{
     summary: catalog.summary,
     message: catalog.message,
   };
-};
-
-export const getTemplateOptions = async (): Promise<TemplateOption[]> => {
-  const catalog = await getTemplateCatalog();
-  return catalog.templates;
 };
 
 const extractBookSpecItems = (
@@ -745,28 +732,6 @@ export const reorderProjectSections = (
     updatedAt: new Date().toISOString(),
   };
 };
-
-export const updateProjectPageParameters = (
-  project: Project,
-  pageId: string,
-  updater: (
-    current: Record<string, TemplateParameterValue>,
-  ) => Record<string, TemplateParameterValue>,
-) => ({
-  ...project,
-  generatedSections: project.generatedSections.map((section) => ({
-    ...section,
-    pages: section.pages.map((page) =>
-      page.id === pageId
-        ? {
-            ...page,
-            parameters: updater(page.parameters),
-          }
-        : page,
-    ),
-  })),
-  updatedAt: new Date().toISOString(),
-});
 
 export const estimateProject = async (
   project: Project,
@@ -1231,5 +1196,3 @@ export const derivePageCount = (project: Project) =>
     0,
   );
 
-export const deriveProjectHeadline = (project: Project) =>
-  project.generatedSections[0]?.title ?? project.title;

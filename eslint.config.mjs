@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Utility scripts (not part of the app)
+    "extract-pdf.js",
+    "move_audio.js",
   ]),
 ]);
 

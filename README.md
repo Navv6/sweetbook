@@ -25,9 +25,8 @@
 | 기능 | 설명 |
 |------|------|
 | 📸 사진 수집 | 표지 이미지 + 본문 사진 다중 업로드 (12 MB 제한, JPEG/PNG/WebP/GIF) |
-| 🤖 AI 큐레이션 | OpenAI로 섹션 제목·인트로·카피 자동 생성 |
 | ✏️ 페이지 편집기 | 스프레드 레이아웃 미리보기, 텍스트·이미지 직접 편집, 섹션 순서 재배치 |
-| 📖 3D 책 미리보기 | CSS preserve-3d 기반 입체 표지 + 페이지 플립 애니메이션 뷰어 |
+| 📖 책 Preview | 편집 중인 표지 + 페이지 뷰어 |
 | 📋 템플릿 선택 | SweetBook API 카탈로그를 우선 조회하고, 실패 시 mock 데이터로 fallback |
 | 💰 견적 조회 | `POST /orders/estimate` 실시간 가격 계산 |
 | 📦 원클릭 주문 | Books API 책 생성·최종화 → Orders API 주문까지 한 흐름으로 연결 |
@@ -63,16 +62,9 @@ cp .env.example .env
 # 필수 — SweetBook Sandbox API Key
 SWEETBOOK_API_KEY=여기에_발급받은_키_입력
 
-# 선택 — OpenAI Key가 없으면 기본 카피로 자동 fallback
-OPENAI_API_KEY=
-
 # 선택 — 웹훅 서명 검증용 (파트너 포털 Webhook 설정에서 발급)
 SWEETBOOK_WEBHOOK_SECRET=
 
-# 선택 — Supabase (없으면 브라우저 로컬스토리지로 대체)
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 > **`SWEETBOOK_API_KEY`만 입력하면 Books/Orders API 전체 플로우가 동작합니다.**
@@ -94,7 +86,7 @@ npm run test
 npm run build
 ```
 
-### 5. 데모 체험 (API Key 없이도 가능)
+### 5. 플로우
 
 1. **첫 프로젝트 시작** 클릭
 2. 프로젝트 제목 입력 → 사진 업로드 없이 더미 이미지로 바로 진행 가능
@@ -133,8 +125,9 @@ npm run build
 
 | AI 도구 | 활용 내용 |
 |---------|----------|
-| **Claude Code** | 전체 프로젝트 설계, API 연동 구조 설계, 버그 탐지 및 수정 (존재하지 않는 `/books/{uid}/photos` 엔드포인트 발견·제거, 잘못된 `gpt-5-mini` 모델명 수정, mock templateUid와 실제 API UID 불일치 발견 및 전면 교체, API 파라미터명 전수 검증) |
-| **OpenAI gpt-4o-mini** | 포토북 섹션 카피(제목·인트로·커버 문구) 런타임 자동 생성. API Key 없을 시 기본 카피로 graceful fallback |
+| **Claude Code** | 전체 프로젝트 설계, API 연동 구조 설계, 버그 탐지 및 수정  |
+| **OpenAI Codex** | Claude Code 토큰 사용량이 90%에 도달한 이후 작업지시서와 handoff 문서를 이어받아 후속 작업을 계속 진행 |
+| **Google Stitch**| 초기 브랜딩 페이지와 UI/UX 초안을 제작 |
 
 ---
 
@@ -142,24 +135,24 @@ npm run build
 
 ### 왜 이 서비스를 선택했는가
 
-사진을 찍는 것과 그것을 "책으로 엮는 것" 사이에는 큰 간극이 있습니다. 대부분의 포토북 서비스는 사용자가 사진을 직접 드래그해 레이아웃을 맞춰야 합니다. 사진이 취미인 사람이라면 그 번거로움을 알고 있을 겁니다.
+Book Print API는 이 서비스의 핵심 인프라입니다.
+기존의 서비스는 레이아웃이 정해져있거나 직관적인 수정이 힘들었습니다.
+그래서 API를 이용해 템플릿과 레이아웃을 그대로 가져오되 사용자 입장에서 자신만의 레이아웃을 구성하고
+자신만의 포토북을 만들어 나가는 것에 집중하였습니다.
+저 또한 포토북을 제가 직접 찍은 사진들을 가지고 제작을 고려해보았던 경험을 살려 사용자 입장에서 어떤 점들이 더 이용하기에 편하고,
+담고자하는 느낌을 충분히 반영할 수 있는지를 생각해보았습니다.
 
-SweetBook Studio는 그 간극을 AI로 채웁니다. 사진을 올리면 AI가 섹션을 나누고 카피를 쓰고 페이지 흐름을 제안합니다. 사용자는 마음에 들지 않는 부분만 고치면 됩니다.
-
-Book Print API는 이 서비스의 핵심 인프라입니다. 1인 개발자 파트너로서 인쇄·제본·배송이라는 물리적 생산을 혼자 해결할 수 없습니다. API가 그 부분을 전담하고, 저는 사용자 경험에 집중했습니다.
 
 ### 비즈니스 가능성
 
 - **타겟 명확성**: 취미 사진작가, 여행 기록자, 육아 일기 사용자 — 포토북 수요가 검증된 시장
-- **차별점**: 단순 사진 배열이 아닌 에디토리얼 경험 (AI 카피 + 스프레드 레이아웃 미리보기)
-- **B2B 확장**: 파트너 모드로 전환 시 사진관·스튜디오가 고객에게 프리미엄 포토북 서비스를 납품하는 플랫폼으로 진화 가능. 스위트북 API 플랫폼의 파트너 생태계와 자연스럽게 연결됩니다.
+- **차별점**: 단순 사진 배열이 아닌 자유 레이아웃 편집기능 제공
+- **B2B 확장**: 
+
 
 ### 더 시간이 있었다면 추가했을 기능
 
-1. **이미지 EXIF 자동 태깅** — 촬영 날짜·위치를 읽어 여행 포토북 섹션 자동 구분
-2. **실시간 PDF 미리보기** — 주문 전 실제 인쇄 결과물 PDF 다운로드
-3. **파트너 대시보드** — 여러 고객 프로젝트를 하나의 계정에서 관리하는 B2B 모드
-4. **주문 상태 Push 알림** — Webhook 이벤트를 브라우저 알림으로 연결
+1. **AI 기능 추가** — 자신의 포토북에 맞는 음원을 생성해주는 AI나 이미지 배치,배열, 문장 생성 등 간단한 기능을 추가해보고싶었습니다.
 
 ### 구현 결정 사항
 
@@ -167,8 +160,6 @@ Book Print API는 이 서비스의 핵심 인프라입니다. 1인 개발자 파
   심사자가 실행 경로를 단순하게 따라올 수 있게 하고, API Key를 서버 라우트에서만 다루기 위해 이렇게 구성했습니다.
 - **Books API와 Orders API를 실제 사용자 퍼널에 직접 연결**  
   단순 엔드포인트 호출 데모가 아니라, `프로젝트 생성 → 편집 → 출판 → 견적 → 주문` 흐름 전체가 하나의 서비스 경험으로 이어지도록 설계했습니다.
-- **Mock fallback을 기본 제공**  
-  Sandbox Key가 없는 상태에서도 결과 화면을 바로 볼 수 있어야 한다는 과제 요구사항 때문에, 더미 이미지와 템플릿 fallback 경로를 별도로 유지했습니다.
 - **자유 편집 결과를 커스텀 템플릿으로 승격**  
   사용자가 캔버스에서 수정한 레이아웃이 실제 출판 데이터와 어긋나지 않도록, publish 시 `layoutOverrides`를 SweetBook 커스텀 템플릿으로 변환하는 방식을 택했습니다.
 
@@ -234,7 +225,6 @@ sweetbook/
 | 언어 | TypeScript 5 | API 응답 타입 안정성 |
 | 스타일 | Tailwind CSS 4 | 에디토리얼 디자인 토큰 커스터마이징 |
 | 상태 관리 | Zustand (persist) | 새로고침 후에도 편집 중인 프로젝트 유지 |
-| AI | OpenAI gpt-4o-mini | 비용 효율적, 한국어 카피 생성 품질 적절 |
 
 ---
 
@@ -245,9 +235,4 @@ sweetbook/
 | `SWEETBOOK_API_KEY` | **필수** | SweetBook Sandbox API Key |
 | `SWEETBOOK_API_BASE_URL` | 선택 | 기본값: `https://api-sandbox.sweetbook.com/v1` |
 | `SWEETBOOK_WEBHOOK_SECRET` | 선택 | 웹훅 서명 검증 시크릿 (파트너 포털 발급) |
-| `OPENAI_API_KEY` | 선택 | 없으면 기본 카피로 fallback |
-| `NEXT_PUBLIC_SUPABASE_URL` | 선택 | 없으면 로컬스토리지 사용 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 선택 | Supabase 인증 |
-| `SUPABASE_SERVICE_ROLE_KEY` | 선택 | 서버 사이드 Supabase 접근 |
-| `REPLICATE_API_TOKEN` | 선택 | Replicate API 토큰 (향후 AI 이미지 생성 확장용) |
 | `NEXT_PUBLIC_APP_URL` | 선택 | 배포 URL (기본값: `https://sweetbook.vercel.app`) |

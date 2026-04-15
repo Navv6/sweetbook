@@ -48,6 +48,7 @@ HANDOFF.md
 PAGE_SPEC.md
 FORM_ANSWERS_DRAFT.md
 extract-pdf.js
+move_audio.js
 
 # user-uploaded images (runtime, not versioned)
 /public/uploads/
