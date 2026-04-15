@@ -1,8 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import OpenAI from "openai";
-
 import { saveProject } from "@/lib/project-repository";
 import {
   buildCatalogSummary,
@@ -34,7 +32,6 @@ const SWEETBOOK_BASE_URL =
   process.env.SWEETBOOK_API_BASE_URL ?? "https://api-sandbox.sweetbook.com/v1";
 
 const hasSweetBookConfig = () => Boolean(process.env.SWEETBOOK_API_KEY);
-const hasOpenAIConfig = () => Boolean(process.env.OPENAI_API_KEY);
 
 type TemplateListResponse = {
   data?: {
@@ -267,11 +264,6 @@ const toFileFromDataUrl = async (dataUrl: string, fallbackName: string) => {
     type: blob.type || "image/jpeg",
   });
 };
-
-const createOpenAIClient = () =>
-  new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
 
 const buildTemplateCatalog = async (): Promise<TemplateCatalogData> => {
   if (!hasSweetBookConfig()) {
@@ -589,34 +581,6 @@ const buildGeneratedSections = (
     });
 };
 
-const generateCopyWithOpenAI = async (project: Project) => {
-  if (!hasOpenAIConfig()) {
-    return undefined;
-  }
-
-  try {
-    const client = createOpenAIClient();
-    const response = await client.responses.create({
-      model: "gpt-4o-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "Write one concise photobook headline in Korean. Return plain text only.",
-        },
-        {
-          role: "user",
-          content: `Title: ${project.title}\nImages: ${project.contentItems.length}`,
-        },
-      ],
-    });
-
-    return response.output_text.trim() || undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 export const createProjectDraft = async (input: {
   title: string;
   templateId: string;
@@ -691,14 +655,6 @@ export const generateProjectSections = async (project: Project) => {
   }
 
   const generatedSections = buildGeneratedSections(project, selectedSchemas);
-  const generatedHeadline = await generateCopyWithOpenAI(project);
-
-  if (generatedHeadline && generatedSections[0]?.pages[0]) {
-    const firstPage = generatedSections[0].pages[0];
-    if ("title" in firstPage.parameters) {
-      firstPage.parameters.title = generatedHeadline;
-    }
-  }
 
   return {
     ...project,
