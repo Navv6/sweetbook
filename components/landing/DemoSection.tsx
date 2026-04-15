@@ -40,7 +40,7 @@ const steps = [
     title: "테마 & 판형 선택",
     description:
       "9개 테마 패밀리와 A4·A5·스퀘어 판형 중 원하는 조합을 고릅니다. 오른쪽 프리뷰에서 실시간으로 결과물을 확인하세요.",
-    tags: ["다양한 템플릿", "3 판형", "실시간 프리뷰"],
+    tags: ["다양한 템플릿", "실시간 프리뷰"],
     accent: "bg-primary/8 border-primary/15",
     badge: "bg-primary text-white",
   },
@@ -48,8 +48,8 @@ const steps = [
     number: "02",
     title: "자유 레이아웃 편집",
     description:
-      "기본으로 준비된 표지·내지·마무리 섹션을 필요한 만큼 복제하고, 자유 레이아웃 모드에서 텍스트·이미지·갤러리 슬롯을 원하는 위치로 옮기며 크기를 조정합니다.",
-    tags: ["자유 레이아웃", "섹션 복제", "이미지 업로드"],
+      "기본으로 준비된 표지·내지·섹션을 필요한 만큼 복제하고, 편집 모드로 자유롭게 텍스트·이미지를 원하는 위치로 옮기며 크기를 조정합니다.",
+    tags: ["자유로운 편집", "이미지 업로드"],
     accent: "bg-surface-container border-outline/50",
     badge: "bg-surface-container-highest text-foreground",
   },

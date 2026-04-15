@@ -38,8 +38,50 @@ const resolveGalleryKindFromElements = (
   return null;
 };
 
-const fieldLabel = (key: string, definition: TemplateParameterDefinition) =>
-  definition.description?.trim() || key;
+const FIELD_LABEL_MAP: Record<string, string> = {
+  monthYearLabel: "연도",
+  monthDayLabel: "월/일",
+  dayMonthLabel: "월/일",
+  dateLabel: "날짜",
+  dateRange: "날짜 범위",
+  title: "제목",
+  subtitle: "부제목",
+  photo: "메인 사진",
+  coverPhoto: "표지 사진",
+  frontPhoto: "앞표지 사진",
+  backPhoto: "뒷표지 사진",
+  collagePhotos: "사진",
+  galleryPhotos: "사진",
+};
+
+const FIELD_EXAMPLE_MAP: Record<string, string> = {
+  monthYearLabel: "(예: 2026)",
+  monthDayLabel: "(예: 4/9)",
+  dayMonthLabel: "(예: 4/9)",
+  dateLabel: "(예: 2026.04.15)",
+  dateRange: "(예: 26.01 - 27.03)",
+  title: "(예: 나의 하루 기록)",
+  subtitle: "(예: 소중한 순간들)",
+  startEndMonthYear: "(예: 2026년 1월 - 6월)",
+};
+
+// 제목(description) 기반 예시 fallback
+const TITLE_EXAMPLE_MAP: Record<string, string> = {
+  "시작/끝 월+연도": "(예: 2026년 1월 - 6월)",
+  "연도": "(예: 2026)",
+  "월/일": "(예: 4/9)",
+  "날짜": "(예: 2026.04.15)",
+  "날짜 범위": "(예: 26.01 - 27.03)",
+  "제목": "(예: 나의 하루 기록)",
+};
+
+const fieldLabel = (key: string, definition: TemplateParameterDefinition) => {
+  let raw = definition.description?.trim() || FIELD_LABEL_MAP[key] || key;
+  if (/갤러리.*사진/.test(raw)) return "사진";
+  // "라벨" 접미사 제거 (예: "월/일 라벨" → "월/일")
+  raw = raw.replace(/\s*라벨$/g, "");
+  return raw;
+};
 
 const bindingBadgeClass: Record<TemplateBinding | "default", string> = {
   text: "border-amber-200 bg-amber-50 text-amber-700",
@@ -78,23 +120,26 @@ function FieldHeader({
   title: string;
   trailing?: ReactNode;
 }) {
+  // "(예: ...)" 부분을 분리 — 영문/코드 예시는 한글 매핑으로 대체
+  const exampleMatch = title.match(/^(.+?)\s*(\(예[::].+\))$/s);
+  const mainTitle = exampleMatch ? exampleMatch[1].trim() : title;
+  const rawCaption = exampleMatch ? exampleMatch[2] : null;
+  // 영문/코드형 예시는 한글 예시 매핑으로 대체
+  const isEnglishExample = rawCaption && /[A-Z]{2,}|\\n|'[A-Z]/.test(rawCaption);
+  const exampleCaption = isEnglishExample
+    ? (FIELD_EXAMPLE_MAP[fieldKey] ?? TITLE_EXAMPLE_MAP[mainTitle] ?? null)
+    : (rawCaption ?? FIELD_EXAMPLE_MAP[fieldKey] ?? TITLE_EXAMPLE_MAP[mainTitle] ?? null);
+
   return (
-    <>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xl font-semibold text-foreground">{title}</p>
-          <p className="mt-1 text-xs text-secondary">{fieldKey}</p>
-        </div>
-        {trailing}
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-base font-semibold text-foreground">{mainTitle}</p>
+        {exampleCaption && (
+          <p className="mt-0.5 text-[11px] text-secondary/70">{exampleCaption}</p>
+        )}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className={pillClass(definition.binding)}>
-          {bindingLabel(definition.binding)}
-        </span>
-        <span className={pillClass("default")}>{definition.type}</span>
-        {definition.required && <span className={requiredPillClass}>required</span>}
-      </div>
-    </>
+      {trailing}
+    </div>
   );
 }
 
@@ -104,6 +149,7 @@ export function InspectorPanel({
   onSelectField,
   onParameterChange,
   onFileChange,
+  totalPhotoCount,
   className = "",
 }: {
   page: GeneratedPage | null;
@@ -111,12 +157,13 @@ export function InspectorPanel({
   onSelectField: (fieldKey: string | null) => void;
   onParameterChange: (fieldKey: string, value: TemplateParameterValue) => void;
   onFileChange: (fieldKey: string, file: File, index?: number) => void;
+  totalPhotoCount?: number;
   className?: string;
 }) {
   if (!page) {
     return (
       <aside className={`glass-panel rounded-[1.75rem] p-6 ${className}`}>
-        <p className="text-lg font-semibold text-foreground">Parameters</p>
+        <p className="text-lg font-semibold text-foreground">편집 항목</p>
       </aside>
     );
   }
@@ -126,7 +173,7 @@ export function InspectorPanel({
   return (
     <aside className={`glass-panel rounded-[1.75rem] p-6 ${className}`}>
       <div className="flex items-center justify-between">
-        <p className="text-lg font-semibold text-foreground">Parameters</p>
+        <p className="text-lg font-semibold text-foreground">편집 매개</p>
         <span className="text-xs uppercase tracking-[0.18em] text-secondary">
           {entries.length}
         </span>
@@ -134,10 +181,10 @@ export function InspectorPanel({
 
       <div className="mt-4 rounded-2xl bg-surface-container-low p-5">
         <p className="display-copy text-2xl text-foreground">
-          {page.templateName}
+          {page.templateName.replace(/\s*\(.*?\)\s*/g, " ").trim()}
         </p>
         <p className="editorial-copy mt-2 text-sm">
-          {`${page.schema.theme} · ${page.schema.bookSpecId}`}
+          {page.schema.theme}
         </p>
       </div>
 
@@ -184,8 +231,8 @@ export function InspectorPanel({
                     definition={galleryDefinition}
                     title={fieldLabel(key, definition)}
                     trailing={
-                      <span className={pillClass(resolvedGalleryKind)}>
-                        {gallery.length} items
+                      <span className="rounded-md border border-outline/20 bg-surface-container-low px-2 py-0.5 text-[11px] font-medium text-secondary">
+                        {gallery.length}장
                       </span>
                     }
                   />
@@ -202,7 +249,7 @@ export function InspectorPanel({
                           >
                             <div className="mb-3 flex items-center justify-between gap-3">
                               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-secondary">
-                                {`Image ${index + 1}`}
+                                {`사진 ${index + 1}`}
                               </p>
                               <button
                                 type="button"
@@ -215,7 +262,7 @@ export function InspectorPanel({
                                 }}
                                 className="text-xs font-semibold uppercase tracking-[0.16em] text-secondary transition hover:text-red-500"
                               >
-                                Remove
+                                삭제
                               </button>
                             </div>
                             <div className="space-y-2">
@@ -227,23 +274,26 @@ export function InspectorPanel({
                                   onParameterChange(key, next);
                                 }}
                               />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(event) => {
-                                  const file = event.target.files?.[0];
-                                  if (file) {
-                                    onFileChange(key, file, index);
-                                  }
-                                }}
-                                className="block w-full text-sm text-secondary"
-                              />
+                              <label className="mt-2 inline-flex cursor-pointer items-center rounded-full bg-surface-container-lowest px-4 py-2 text-xs font-semibold tracking-[0.16em] text-secondary transition hover:bg-surface-container hover:text-foreground">
+                                사진 첨부
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    if (file) {
+                                      onFileChange(key, file, index);
+                                    }
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
                             </div>
                           </div>
                         ))
                       ) : (
                         <div className="rounded-2xl border border-dashed border-outline/20 bg-surface-container-lowest px-4 py-3 text-xs text-secondary">
-                          Add images to build this gallery layout.
+                          사진을 추가하여 갤러리를 구성하세요.
                         </div>
                       )}
                     </div>
@@ -255,15 +305,15 @@ export function InspectorPanel({
                       onClick={() => onParameterChange(key, [...gallery, ""])}
                       className="mt-4 rounded-full bg-surface-container-lowest px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-secondary transition hover:bg-surface-container hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Add image
+                      첨부
                     </button>
 
                     <div className="mt-3 text-xs text-secondary">
                       {isRowGallery
-                        ? `Recommended ${RECOMMENDED_ROW_GALLERY_ITEMS} images. You can add between 1 and ${MAX_ROW_GALLERY_ITEMS}.`
+                        ? `권장 ${RECOMMENDED_ROW_GALLERY_ITEMS}장. 1~${MAX_ROW_GALLERY_ITEMS}장 추가 가능.`
                         : isCollageGallery
-                          ? `Recommended ${RECOMMENDED_COLLAGE_GALLERY_ITEMS} images. You can add between 1 and ${MAX_COLLAGE_GALLERY_ITEMS}.`
-                          : "Gallery fields support one or more images."}
+                          ? `권장 ${RECOMMENDED_COLLAGE_GALLERY_ITEMS}장. 1~${MAX_COLLAGE_GALLERY_ITEMS}장 추가 가능.`
+                          : "1장 이상의 사진을 추가할 수 있습니다."}
                     </div>
                   </>
                 )}
@@ -295,17 +345,20 @@ export function InspectorPanel({
                       }
                       className="mt-4"
                     />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          onFileChange(key, file);
-                        }
-                      }}
-                      className="mt-3 block w-full text-sm text-secondary"
-                    />
+                    <label className="mt-3 inline-flex cursor-pointer items-center rounded-full bg-surface-container-lowest px-4 py-2 text-xs font-semibold tracking-[0.16em] text-secondary transition hover:bg-surface-container hover:text-foreground">
+                      사진 첨부
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            onFileChange(key, file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
                   </>
                 )}
               </div>
@@ -337,6 +390,45 @@ export function InspectorPanel({
                   className="h-4 w-4 accent-[var(--primary)]"
                 />
               </label>
+            );
+          }
+
+          // "사진 수" 필드는 전체 프로젝트의 이미지 수를 자동 집계
+          const label = fieldLabel(key, definition);
+          const isPhotoCount = /사진\s*수/.test(label) || /photoCount/i.test(key);
+          const isPublisher = /제작사/.test(label) || /publisher/i.test(key);
+
+          if (isPhotoCount && totalPhotoCount !== undefined) {
+            return (
+              <div key={key} className={cardClass(isSelected)}>
+                <button
+                  type="button"
+                  onClick={() => onSelectField(key)}
+                  className="w-full text-left"
+                >
+                  <FieldHeader
+                    fieldKey={key}
+                    definition={definition}
+                    title={label}
+                  />
+                </button>
+                <p className="mt-3 text-lg font-semibold text-foreground">
+                  {totalPhotoCount}장
+                </p>
+              </div>
+            );
+          }
+
+          if (isPublisher) {
+            return (
+              <div key={key} className={cardClass(isSelected)}>
+                <FieldHeader
+                  fieldKey={key}
+                  definition={definition}
+                  title={label}
+                />
+                <p className="mt-3 text-sm text-foreground">(주)스위트북</p>
+              </div>
             );
           }
 

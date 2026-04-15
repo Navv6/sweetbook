@@ -519,15 +519,6 @@ export default function CheckoutPage() {
                           ? "금액 계산 중..."
                           : "주문하기"}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="mt-3 w-full py-4 text-base"
-                      onClick={handleEstimateRetry}
-                      disabled={isEstimating || isOrdering}
-                    >
-                      금액 다시 계산
-                    </Button>
                   </>
                 ) : (
                   <Button
@@ -538,10 +529,6 @@ export default function CheckoutPage() {
                     에디터로 돌아가기
                   </Button>
                 )}
-
-                <p className="mt-5 text-center text-[11px] uppercase tracking-[0.2em] text-secondary">
-                  확정 금액 기준 결제
-                </p>
               </div>
             </aside>
           </div>

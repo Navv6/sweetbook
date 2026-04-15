@@ -44,6 +44,13 @@ yarn-error.log*
 # internal documents
 sweetbook-api-review.md
 *.pdf
+HANDOFF.md
+PAGE_SPEC.md
+FORM_ANSWERS_DRAFT.md
+extract-pdf.js
+
+# user-uploaded images (runtime, not versioned)
+/public/uploads/
 
 # typescript
 *.tsbuildinfo

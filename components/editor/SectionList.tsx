@@ -38,7 +38,7 @@ export function SectionList({
             >
               <p className="section-label">{`${page?.pageNumber ?? index + 1}페이지`}</p>
               <p className="mt-3 text-base font-semibold text-foreground">
-                {section.title}
+                {section.title.replace(/\s*\(.*?\)\s*/g, " ").trim()}
               </p>
               <p className="editorial-copy mt-2 text-sm">{section.intro}</p>
             </button>

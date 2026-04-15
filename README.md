@@ -24,7 +24,7 @@
 
 | 기능 | 설명 |
 |------|------|
-| 📸 사진 수집 | 표지 이미지 + 본문 사진 다중 업로드 |
+| 📸 사진 수집 | 표지 이미지 + 본문 사진 다중 업로드 (12 MB 제한, JPEG/PNG/WebP/GIF) |
 | 🤖 AI 큐레이션 | OpenAI로 섹션 제목·인트로·카피 자동 생성 |
 | ✏️ 페이지 편집기 | 스프레드 레이아웃 미리보기, 텍스트·이미지 직접 편집, 섹션 순서 재배치 |
 | 📖 3D 책 미리보기 | CSS preserve-3d 기반 입체 표지 + 페이지 플립 애니메이션 뷰어 |
@@ -32,6 +32,7 @@
 | 💰 견적 조회 | `POST /orders/estimate` 실시간 가격 계산 |
 | 📦 원클릭 주문 | Books API 책 생성·최종화 → Orders API 주문까지 한 흐름으로 연결 |
 | 🔔 웹훅 수신 | 주문·제작·배송 상태 변경 이벤트 수신, 서명 검증, 주문 상세 타임라인 반영 |
+| 🎵 QR 사운드트랙 | 완성된 포토북에 QR 코드를 첨부, 스캔 시 전용 사운드트랙 페이지로 연결 |
 
 ---
 
@@ -101,6 +102,13 @@ npm run build
 4. 편집기에서 텍스트·이미지 수정, 섹션 순서 조정
 5. **출판 및 주문** → 배송지 입력 → 주문 완료
 
+### 6. 제출용 빠른 확인 포인트
+
+- 프론트엔드 UI와 백엔드 API 라우트를 하나의 Next.js 저장소에서 함께 제공합니다.
+- `SWEETBOOK_API_KEY`가 있으면 실제 Sandbox Books API + Orders API까지 전체 흐름을 검증할 수 있습니다.
+- API Key가 없어도 `lib/mock.ts`의 더미 데이터로 첫 화면부터 편집기, 주문 흐름까지 바로 확인할 수 있습니다.
+- 환경 변수 예시는 `.env.example`에 포함되어 있고, 실제 키 값은 저장소에 커밋하지 않았습니다.
+
 ---
 
 ## 사용한 API 목록
@@ -153,6 +161,17 @@ Book Print API는 이 서비스의 핵심 인프라입니다. 1인 개발자 파
 3. **파트너 대시보드** — 여러 고객 프로젝트를 하나의 계정에서 관리하는 B2B 모드
 4. **주문 상태 Push 알림** — Webhook 이벤트를 브라우저 알림으로 연결
 
+### 구현 결정 사항
+
+- **프론트엔드와 백엔드를 Next.js App Router 한 저장소로 통합**  
+  심사자가 실행 경로를 단순하게 따라올 수 있게 하고, API Key를 서버 라우트에서만 다루기 위해 이렇게 구성했습니다.
+- **Books API와 Orders API를 실제 사용자 퍼널에 직접 연결**  
+  단순 엔드포인트 호출 데모가 아니라, `프로젝트 생성 → 편집 → 출판 → 견적 → 주문` 흐름 전체가 하나의 서비스 경험으로 이어지도록 설계했습니다.
+- **Mock fallback을 기본 제공**  
+  Sandbox Key가 없는 상태에서도 결과 화면을 바로 볼 수 있어야 한다는 과제 요구사항 때문에, 더미 이미지와 템플릿 fallback 경로를 별도로 유지했습니다.
+- **자유 편집 결과를 커스텀 템플릿으로 승격**  
+  사용자가 캔버스에서 수정한 레이아웃이 실제 출판 데이터와 어긋나지 않도록, publish 시 `layoutOverrides`를 SweetBook 커스텀 템플릿으로 변환하는 방식을 택했습니다.
+
 ---
 
 ## 프로젝트 구조
@@ -165,23 +184,41 @@ sweetbook/
 │   ├── projects/[id]/              # 페이지 편집기
 │   ├── checkout/[id]/              # 견적 + 배송지 입력
 │   ├── orders/[id]/                # 주문 확인
+│   ├── soundtrack/[id]/            # QR 사운드트랙 플레이어 (QR 공유 도달 화면)
 │   └── api/
-│       ├── projects/[id]/
-│       │   ├── generate/           # AI 레이아웃 생성
-│       │   ├── layout/             # 섹션 순서 재배치
-│       │   ├── estimate/           # 견적 조회
-│       │   ├── publish/            # Books API 연동
-│       │   └── order/              # Orders API 연동
+│       ├── catalog/                # 템플릿·판형 통합 카탈로그 조회
+│       ├── image-proxy/            # CORS-safe 이미지 프록시 (html-to-image용)
+│       ├── templates/custom/[uid]/ # 커스텀 템플릿 스키마 조회
+│       ├── uploads/                # 이미지 업로드 (로컬 /public/uploads 저장)
+│       ├── projects/
+│       │   ├── route.ts            # 프로젝트 생성
+│       │   └── [id]/
+│       │       ├── route.ts        # 프로젝트 조회·수정·삭제
+│       │       ├── generate/       # AI 레이아웃 생성
+│       │       ├── layout/         # 섹션 순서 재배치
+│       │       ├── estimate/       # 견적 조회
+│       │       ├── music/          # 사운드트랙 로드
+│       │       ├── publish/        # Books API 연동
+│       │       └── order/          # Orders API 연동
 │       └── webhooks/sweetbook/     # 웹훅 수신 (HMAC-SHA256 검증)
 ├── components/
 │   ├── editor/                     # 페이지 캔버스, 인스펙터 패널, 섹션 목록
+│   ├── landing/                    # 랜딩 페이지 섹션 컴포넌트
+│   ├── layout/                     # 레이아웃 컴포넌트 (헤더 등)
 │   ├── preview/                    # 3D 책 미리보기 모달
 │   ├── studio/                     # 템플릿·판형 선택기
 │   └── ui/                         # 공통 Button, Card, Input
 ├── lib/
 │   ├── api.ts                      # SweetBook API + OpenAI 클라이언트
-│   ├── layout.ts                   # 레이아웃 생성 알고리즘
-│   └── mock.ts                     # API Key 없을 때 fallback 데이터
+│   ├── curated-theme-families.ts   # 테마 패밀리 분류 데이터
+│   ├── media.ts                    # 이미지 처리 유틸리티
+│   ├── mock.ts                     # API Key 없을 때 fallback 데이터
+│   ├── project-repository.ts       # 프로젝트 저장소 (Supabase / 로컬 fallback)
+│   ├── spec-canvas.ts              # 판형별 캔버스 사양
+│   ├── supabase.ts                 # Supabase 클라이언트
+│   ├── template-catalog.ts         # 템플릿 카탈로그 빌더
+│   ├── template-gallery.ts         # 템플릿 갤러리 유틸리티
+│   └── webhook.ts                  # 웹훅 이벤트 처리
 ├── store/                          # Zustand 상태 (브라우저 persist)
 ├── types/                          # TypeScript 타입 정의
 └── .env.example                    # 환경변수 예시
@@ -212,3 +249,5 @@ sweetbook/
 | `NEXT_PUBLIC_SUPABASE_URL` | 선택 | 없으면 로컬스토리지 사용 |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 선택 | Supabase 인증 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 선택 | 서버 사이드 Supabase 접근 |
+| `REPLICATE_API_TOKEN` | 선택 | Replicate API 토큰 (향후 AI 이미지 생성 확장용) |
+| `NEXT_PUBLIC_APP_URL` | 선택 | 배포 URL (기본값: `https://sweetbook.vercel.app`) |

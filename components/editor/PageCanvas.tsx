@@ -74,27 +74,10 @@ export function PageCanvas({
         <div>
           <p className="section-label">{`Page ${page.pageNumber}`}</p>
           <p className="display-copy mt-3 text-3xl text-foreground">
-            {page.templateName}
+            {page.templateName.replace(/\s*\(.*?\)\s*/g, " ").trim()}
           </p>
-          {hasGalleryFields && (
-            <p className="mt-3 text-xs uppercase tracking-[0.16em] text-secondary">
-              {`Gallery template • ${galleryFields
-                .map((field) => field.label)
-                .join(", ")}`}
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-3">
-          {hasGalleryFields && (
-            <span className="rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold text-secondary">
-              Gallery
-            </span>
-          )}
-          {hasOverrides && !freeEditMode && (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              커스텀 레이아웃
-            </span>
-          )}
           <button
             type="button"
             onClick={() => setMyTemplatesOpen(true)}
@@ -108,7 +91,7 @@ export function PageCanvas({
             disabled={savingTemplate}
             className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-secondary transition hover:bg-surface-container hover:text-foreground disabled:opacity-50"
           >
-            {savingTemplate ? "저장 중…" : "레이아웃 저장"}
+            {savingTemplate ? "저장 중…" : "저장"}
           </button>
           <button
             type="button"
@@ -120,11 +103,8 @@ export function PageCanvas({
                 : "bg-surface-container-low text-secondary hover:bg-surface-container",
             ].join(" ")}
           >
-            {freeEditMode ? "편집 완료" : "레이아웃 편집"}
+            {freeEditMode ? "완료" : "편집"}
           </button>
-          <div className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
-            {page.kind}
-          </div>
         </div>
       </div>
 

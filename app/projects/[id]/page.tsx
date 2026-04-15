@@ -88,6 +88,33 @@ export default function EditorPage() {
     ? selectedSection.pages[0]
     : null;
 
+  const totalPhotoCount = useMemo(() => {
+    if (!project) return 0;
+    let count = 0;
+    for (const section of project.generatedSections) {
+      for (const page of section.pages) {
+        for (const [key, def] of Object.entries(
+          page.schema?.parameterDefinitions ?? {},
+        )) {
+          const val = page.parameters[key];
+          if (def.binding === "file" && typeof val === "string" && val !== "") {
+            count++;
+          }
+          if (
+            (def.binding === "rowGallery" ||
+              def.binding === "columnGallery" ||
+              def.binding === "collageGallery" ||
+              def.type === "array") &&
+            Array.isArray(val)
+          ) {
+            count += val.filter((v) => typeof v === "string" && v !== "").length;
+          }
+        }
+      }
+    }
+    return count;
+  }, [project]);
+
   const handleMoveSection = async (
     sectionId: string,
     direction: "up" | "down",
@@ -404,9 +431,9 @@ export default function EditorPage() {
           </div>
         </Container>
 
-        {/* 캔버스 그리드 — Container 밖에서 전체 너비 사용 */}
-        <div className="mt-6 grid items-start gap-4 px-4 md:px-6 xl:grid-cols-[220px_minmax(0,1fr)_260px]">
-            <aside className="glass-panel rounded-[1.75rem] p-5 xl:sticky xl:top-6">
+        {/* 캔버스 그리드 */}
+        <div className="mx-auto mt-6 grid w-full max-w-7xl items-start gap-4 px-4 md:px-8 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
+            <aside className="glass-panel rounded-[1.75rem] p-5 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto">
               <div className="mb-6">
                 <p className="display-copy text-3xl text-foreground">
                   페이지
@@ -493,12 +520,13 @@ export default function EditorPage() {
             </section>
 
             <InspectorPanel
-              className="xl:sticky xl:top-6"
+              className="xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
               page={selectedPage}
               selectedFieldKey={selectedFieldKey}
               onSelectField={setSelectedFieldKey}
               onParameterChange={handleParameterChange}
               onFileChange={handleFileChange}
+              totalPhotoCount={totalPhotoCount}
             />
           </div>
       </main>

@@ -232,6 +232,25 @@ const readLocalUpload = async (urlPath: string) => {
   return new File([new Uint8Array(bytes)], filename, { type: mime });
 };
 
+/**
+ * 이미지를 SweetBook photos API에 사전 업로드하고 서버 파일명을 반환합니다.
+ * Gallery 배열에서 로컬 업로드/data URL을 서버 파일명으로 변환할 때 사용합니다.
+ */
+const uploadPhotoToBook = async (
+  bookUid: string,
+  file: File,
+): Promise<string> => {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await sweetBookRequest<{
+    data: { fileName: string };
+  }>(`/books/${bookUid}/photos`, {
+    method: "POST",
+    body: fd,
+  });
+  return res.data.fileName;
+};
+
 const ensureAbsoluteAssetUrl = (value: string) => {
   if (
     value.startsWith("http://") ||
@@ -523,6 +542,11 @@ const buildPageParameters = (
     }
 
     parameters[key] = buildDefaultTextValue(key, project, now, mediaCursor.value);
+
+    // 제작사는 항상 고정
+    if (key === "publisher") {
+      parameters[key] = "(주)스위트북";
+    }
   });
 
   return {
@@ -860,9 +884,40 @@ export const saveCustomTemplateFromPage = async (
  * Returns the templateUid to use when publishing.
  * If the page has layoutOverrides, registers a custom template first.
  */
+/**
+ * 빈 필수 이미지 파라미터의 placeholder — photos API에 업로드하여 서버 파일명으로 참조.
+ * 가장 작은 유효한 JPEG (1x1 흰색 픽셀, 107 bytes)
+ */
+const createPlaceholderJpeg = (): File => {
+  // Smallest valid 1x1 white JPEG created via: sharp(Buffer.alloc(3,255),{raw:{width:1,height:1,channels:3}}).jpeg().toBuffer()
+  const b64 =
+    "/9j/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRof" +
+    "Hh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/" +
+    "2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIy" +
+    "MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAAR" +
+    "CAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/" +
+    "EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAA" +
+    "AAAAB/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8" +
+    "AKwAB/9k=";
+  const bytes = Buffer.from(b64, "base64");
+  return new File([new Uint8Array(bytes)], "placeholder.jpg", { type: "image/jpeg" });
+};
+
+const placeholderFileNames = new Map<string, string>();
+
+const getPlaceholderFileName = async (bookUid: string): Promise<string> => {
+  const cached = placeholderFileNames.get(bookUid);
+  if (cached) return cached;
+  const file = createPlaceholderJpeg();
+  const fileName = await uploadPhotoToBook(bookUid, file);
+  placeholderFileNames.set(bookUid, fileName);
+  return fileName;
+};
+
 const marshalTemplateParameters = async (
   definitions: Record<string, TemplateParameterDefinition>,
   parameters: Record<string, TemplateParameterValue>,
+  bookUid?: string,
 ) => {
   const formData = new FormData();
   const payload: Record<string, unknown> = {};
@@ -870,32 +925,35 @@ const marshalTemplateParameters = async (
   for (const [key, definition] of Object.entries(definitions)) {
     const value = normalizeParameterValue(definition, parameters[key]);
 
-    if (
+    const isGalleryField =
       definition.binding === "rowGallery" ||
       definition.binding === "columnGallery" ||
-      definition.binding === "collageGallery"
-    ) {
+      definition.binding === "collageGallery" ||
+      (definition.type === "array" && Array.isArray(value));
+
+    if (isGalleryField) {
       const items = Array.isArray(value) ? value : [];
-      payload[key] = await Promise.all(
-        items.map(async (item, index) => {
-          if (typeof item !== "string") {
+      const resolvedItems = await Promise.all(
+        items.map(async (item) => {
+          if (typeof item !== "string" || item === "") {
             return "";
           }
-          if (item.startsWith("data:")) {
-            const fieldName = `${key}_${index}`;
-            formData.append(
-              fieldName,
-              await toFileFromDataUrl(item, `${fieldName}.jpg`),
-            );
-            return fieldName;
+          // photos API로 사전 업로드 후 서버 파일명 사용
+          if (item.startsWith("data:") && bookUid) {
+            const file = await toFileFromDataUrl(item, `${key}.jpg`);
+            return uploadPhotoToBook(bookUid, file);
           }
-          if (isLocalUpload(item)) {
-            const fieldName = `${key}_${index}`;
-            formData.append(fieldName, await readLocalUpload(item));
-            return fieldName;
+          if (isLocalUpload(item) && bookUid) {
+            const file = await readLocalUpload(item);
+            return uploadPhotoToBook(bookUid, file);
           }
           return ensureAbsoluteAssetUrl(item);
         }),
+      );
+      payload[key] = resolvedItems.filter((item) => item !== "");
+      console.log(
+        `[marshal] gallery key=${key} binding=${definition.binding} rawItems=${items.length} resolvedItems=${(payload[key] as string[]).length}`,
+        payload[key],
       );
       continue;
     }
@@ -903,17 +961,27 @@ const marshalTemplateParameters = async (
     if (definition.binding === "file") {
       if (typeof value === "string" && value.startsWith("data:")) {
         formData.append(key, await toFileFromDataUrl(value, `${key}.jpg`));
-        payload[key] = key;
+        payload[key] = "$upload";
       } else if (typeof value === "string" && isLocalUpload(value)) {
         formData.append(key, await readLocalUpload(value));
-        payload[key] = key;
-      } else if (typeof value === "string") {
+        payload[key] = "$upload";
+      } else if (typeof value === "string" && value !== "") {
         payload[key] = ensureAbsoluteAssetUrl(value);
-      } else if (typeof definition.default === "string") {
+      } else if (typeof definition.default === "string" && definition.default !== "") {
         payload[key] = ensureAbsoluteAssetUrl(definition.default);
+      } else if (bookUid) {
+        // 필수 이미지가 비어있으면 placeholder 이미지를 사전 업로드하여 사용
+        console.warn(`[marshal] file param '${key}' is empty — using placeholder`);
+        payload[key] = await getPlaceholderFileName(bookUid);
       } else {
         payload[key] = "";
       }
+      continue;
+    }
+
+    // 고정값 하드코딩
+    if (key === "publisher") {
+      payload[key] = "(주)스위트북";
       continue;
     }
 
@@ -927,6 +995,7 @@ const marshalTemplateParameters = async (
 const preparePageForPublish = async (
   page: GeneratedPage,
   registeredCustomUids: string[],
+  bookUid: string,
 ) => {
   const templateUid =
     page.layoutOverrides && page.layoutOverrides.length > 0
@@ -940,6 +1009,7 @@ const preparePageForPublish = async (
   const formData = await marshalTemplateParameters(
     page.schema.parameterDefinitions,
     page.parameters,
+    bookUid,
   );
   formData.append("templateUid", templateUid);
 
@@ -1022,7 +1092,7 @@ export const publishProject = async (
     const preparedPages = await runWithConcurrency(
       contentPages,
       3,
-      (page) => preparePageForPublish(page, registeredCustomUids),
+      (page) => preparePageForPublish(page, registeredCustomUids, bookUid),
     );
     logPublishStep("content:prepare", prepareStartedAt, `pages=${preparedPages.length}`);
 
