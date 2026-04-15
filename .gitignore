@@ -40,6 +40,11 @@ yarn-error.log*
 
 # claude code internal
 .claude/
+CLAUDE.md
+AGENTS.md
+
+# test files
+__tests__/
 
 # internal documents
 sweetbook-api-review.md
